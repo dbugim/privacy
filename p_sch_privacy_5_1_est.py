@@ -104,10 +104,10 @@ def open_chrome_in_privacy_login_page():
     # 3. Launch Chrome as a SEPARATE process (Native Launch)
     # We open a 'Remote Debugging Port' that Playwright will use to connect
     print("Launching Native Chrome Process...")
-    browser_process = subprocess.Popen([
+    subprocess.Popen([
         chrome_path,
         f"--user-data-dir={user_data}",
-        "--remote-debugging-port=9222",
+        "--remote-debugging-port=9222", # This is the bridge
         "--start-maximized",
         "--no-first-run",
         "--no-default-browser-check",
@@ -123,371 +123,18 @@ def open_chrome_in_privacy_login_page():
         print("Hooking Playwright into the running Chrome...")
         # Instead of launch_persistent_context, we CONNECT to the port
         browser = pw.chromium.connect_over_cdp("http://localhost:9222")
-
+        
         # Access the already open context and page
         context = browser.contexts[0]
         page = context.pages[0]
 
         print("Successfully hooked! Browser is now under automation control.")
-        return pw, context, browser_process
+        return pw, context
 
     except Exception as e:
         print(f"Hook failed: {e}")
         pw.stop()
-        browser_process.kill()
         raise
-
-def insert_username(page):
-    """
-    Attempt to find the username input field and insert 'hacksimone29@gmail.com'.
-    Handles Shadow DOM and multiple selector strategies.
-    """
-    try:
-        # List of selectors to try
-        selectors = [
-            # Shadow DOM JavaScript selector (most reliable for this page)
-            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input#floating-input-i4nch77")',
-            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input[type=\'email\']")',
-            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("div > div > div:nth-child(1) > div > form > div:nth-child(1) input")',
-            # Direct CSS selectors (if Shadow DOM is not present)
-            "input#floating-input-i4nch77",
-            "input.el-input__inner[type='email']",
-            "input[type='email'][autocomplete='off']",
-            "input[placeholder=' '][type='email']",
-            # XPath (may not work with Shadow DOM)
-            "//*[@id='privacy-web-auth']//div/div/div[1]/div/form/div[1]//input",
-            "//input[@type='email' and contains(@id, 'floating-input')]",
-            "//input[@class='el-input__inner' and @type='email']"
-        ]
-
-        # Try each selector
-        for selector in selectors:
-            try:
-                # Handle different selector types
-                if selector.startswith("document.querySelector"):
-                    # JavaScript selector (handles shadow DOM)
-                    input_inserted = page.evaluate(f'''(text) => {{
-                        try {{
-                            const input = {selector};
-                            if (input) {{
-                                input.scrollIntoView({{behavior: 'smooth', block: 'center'}});
-                                input.focus();
-                                input.value = text;
-                                input.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                                input.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                                input.dispatchEvent(new Event('blur', {{ bubbles: true }}));
-                                return true;
-                            }}
-                        }} catch(e) {{
-                            console.error('Error inserting username:', e);
-                        }}
-                        return false;
-                    }}''', "milfelectra@gmail.com")
-                    if input_inserted:
-                        print("✓ Username inserted successfully with Shadow DOM selector")
-                        return True
-
-                elif selector.startswith('/'):
-                    # XPath selector
-                    xpath_elements = page.locator(f"xpath={selector}")
-                    if xpath_elements.count() > 0:
-                        try:
-                            # Force visibility
-                            page.evaluate(f'''(selector) => {{
-                                const element = document.evaluate(
-                                    `{selector}`,
-                                    document,
-                                    null,
-                                    XPathResult.FIRST_ORDERED_NODE_TYPE,
-                                    null
-                                ).singleNodeValue;
-                                if (element) {{
-                                    element.style.opacity = '1';
-                                    element.style.visibility = 'visible';
-                                    element.style.display = 'block';
-                                }}
-                            }}''', selector)
-                            # Scroll, focus, and fill
-                            xpath_elements.first.scroll_into_view_if_needed()
-                            xpath_elements.first.focus()
-                            xpath_elements.first.fill("milfelectra@gmail.com")
-                            print("✓ Username inserted successfully with XPath")
-                            return True
-                        except Exception as e:
-                            print(f"XPath insert failed: {str(e)}")
-
-                else:
-                    # CSS selector
-                    css_elements = page.locator(selector)
-                    if css_elements.count() > 0:
-                        try:
-                            # Force visibility
-                            page.evaluate(f'''(selector) => {{
-                                const element = document.querySelector(selector);
-                                if (element) {{
-                                    element.style.opacity = '1';
-                                    element.style.visibility = 'visible';
-                                    element.style.display = 'block';
-                                }}
-                            }}''', selector)
-                            # Scroll, focus, and fill
-                            css_elements.first.scroll_into_view_if_needed()
-                            css_elements.first.focus()
-                            css_elements.first.fill("milfelectra@gmail.com")
-                            print("✓ Username inserted successfully with CSS selector")
-                            return True
-                        except Exception as e:
-                            print(f"CSS selector insert failed: {str(e)}")
-
-            except Exception as e:
-                print(f"Failed with username input selector {selector}: {str(e)}")
-                continue
-
-        # Fallback JavaScript approach with comprehensive search
-        print("Trying JavaScript fallback approach for username input...")
-        fallback_inserted = page.evaluate('''(text) => {
-            // Try Shadow DOM first
-            const shadowHost = document.querySelector("#privacy-web-auth");
-            if (shadowHost && shadowHost.shadowRoot) {
-                // Try multiple selectors inside shadow DOM
-                const shadowSelectors = [
-                    'input[type="email"]',
-                    'input.el-input__inner[type="email"]',
-                    'input[autocomplete="off"][type="email"]',
-                    'input[placeholder=" "][type="email"]',
-                    'div > div > div:nth-child(1) > div > form > div:nth-child(1) input'
-                ];
-
-                for (const selector of shadowSelectors) {
-                    const shadowInput = shadowHost.shadowRoot.querySelector(selector);
-                    if (shadowInput) {
-                        shadowInput.scrollIntoView({behavior: 'smooth', block: 'center'});
-                        shadowInput.focus();
-                        shadowInput.value = text;
-                        shadowInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        shadowInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        shadowInput.dispatchEvent(new Event('blur', { bubbles: true }));
-                        return true;
-                    }
-                }
-            }
-
-            // Try regular DOM as fallback
-            const inputSelectors = [
-                'input[type="email"]',
-                'input.el-input__inner[type="email"]',
-                'input[autocomplete="off"][type="email"]',
-                'input[tabindex="0"][type="email"]',
-                'input[placeholder=" "][type="email"]'
-            ];
-
-            for (const selector of inputSelectors) {
-                const inputs = document.querySelectorAll(selector);
-                for (const input of inputs) {
-                    if (input && input.offsetParent !== null) {
-                        input.scrollIntoView({behavior: 'smooth', block: 'center'});
-                        input.focus();
-                        input.value = text;
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                        input.dispatchEvent(new Event('change', { bubbles: true }));
-                        input.dispatchEvent(new Event('blur', { bubbles: true }));
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }''', "milfelectra@gmail.com")
-
-        if fallback_inserted:
-            print("✓ Username inserted successfully using JavaScript fallback!")
-            return True
-
-        print("❌ Could not find or insert into username input using any method.")
-        return False
-
-    except Exception as e:
-        print(f"❌ Error in insert_username: {str(e)}")
-        return False
-
-def insert_password(page):
-    """
-    Attempt to find the password input field and insert '#Partiu14'.
-    Handles Shadow DOM and multiple selector strategies.
-    """
-    try:
-        # List of selectors to try
-        selectors = [
-            # Shadow DOM JavaScript selectors (most reliable for this page)
-            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input#floating-input-ue2x7hk")',
-            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input[type=\'password\']")',
-            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("div > div > div:nth-child(1) > div > form > div.el-form-item.is-required.asterisk-left input")',
-            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("div > div > div:nth-child(1) > div > form > div:nth-child(2) input")',
-            # Direct CSS selectors (if Shadow DOM is not present)
-            "input#floating-input-ue2x7hk",
-            "input.el-input__inner[type='password']",
-            "input[type='password'][autocomplete='off']",
-            "input[placeholder=' '][type='password']",
-            "div.el-form-item.is-required input[type='password']",
-            # XPath (may not work with Shadow DOM)
-            "//*[@id='privacy-web-auth']//div/div/div[1]/div/form/div[2]//input",
-            "//input[@type='password' and contains(@id, 'floating-input')]",
-            "//input[@class='el-input__inner' and @type='password']",
-            "//div[contains(@class, 'is-required')]//input[@type='password']"
-        ]
-
-        # Try each selector
-        for selector in selectors:
-            try:
-                # Handle different selector types
-                if selector.startswith("document.querySelector"):
-                    # JavaScript selector (handles shadow DOM)
-                    input_inserted = page.evaluate(f'''(text) => {{
-                        try {{
-                            const input = {selector};
-                            if (input) {{
-                                input.scrollIntoView({{behavior: 'smooth', block: 'center'}});
-                                input.focus();
-                                input.value = text;
-                                input.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                                input.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                                input.dispatchEvent(new Event('blur', {{ bubbles: true }}));
-                                return true;
-                            }}
-                        }} catch(e) {{
-                            console.error('Error inserting password:', e);
-                        }}
-                        return false;
-                    }}''', "#Partiu14")
-                    if input_inserted:
-                        print("✓ Password inserted successfully with Shadow DOM selector")
-                        return True
-
-                elif selector.startswith('/'):
-                    # XPath selector
-                    xpath_elements = page.locator(f"xpath={selector}")
-                    if xpath_elements.count() > 0:
-                        try:
-                            # Force visibility
-                            page.evaluate(f'''(selector) => {{
-                                const element = document.evaluate(
-                                    `{selector}`,
-                                    document,
-                                    null,
-                                    XPathResult.FIRST_ORDERED_NODE_TYPE,
-                                    null
-                                ).singleNodeValue;
-                                if (element) {{
-                                    element.style.opacity = '1';
-                                    element.style.visibility = 'visible';
-                                    element.style.display = 'block';
-                                }}
-                            }}''', selector)
-                            # Scroll, focus, and fill
-                            xpath_elements.first.scroll_into_view_if_needed()
-                            xpath_elements.first.focus()
-                            xpath_elements.first.fill("#Partiu14")
-                            print("✓ Password inserted successfully with XPath")
-                            return True
-                        except Exception as e:
-                            print(f"XPath insert failed: {str(e)}")
-
-                else:
-                    # CSS selector
-                    css_elements = page.locator(selector)
-                    if css_elements.count() > 0:
-                        try:
-                            # Force visibility
-                            page.evaluate(f'''(selector) => {{
-                                const element = document.querySelector(selector);
-                                if (element) {{
-                                    element.style.opacity = '1';
-                                    element.style.visibility = 'visible';
-                                    element.style.display = 'block';
-                                }}
-                            }}''', selector)
-                            # Scroll, focus, and fill
-                            css_elements.first.scroll_into_view_if_needed()
-                            css_elements.first.focus()
-                            css_elements.first.fill("#Partiu14")
-                            print("✓ Password inserted successfully with CSS selector")
-                            return True
-                        except Exception as e:
-                            print(f"CSS selector insert failed: {str(e)}")
-
-            except Exception as e:
-                print(f"Failed with password input selector {selector}: {str(e)}")
-                continue
-
-        # Fallback JavaScript approach with comprehensive search
-        print("Trying JavaScript fallback approach for password input...")
-        fallback_inserted = page.evaluate('''(text) => {
-            // Try Shadow DOM first
-            const shadowHost = document.querySelector("#privacy-web-auth");
-            if (shadowHost && shadowHost.shadowRoot) {
-                // Try multiple selectors inside shadow DOM
-                const shadowSelectors = [
-                    'input[type="password"]',
-                    'input.el-input__inner[type="password"]',
-                    'input[autocomplete="off"][type="password"]',
-                    'input[placeholder=" "][type="password"]',
-                    'div.el-form-item.is-required input[type="password"]',
-                    'div > div > div:nth-child(1) > div > form > div:nth-child(2) input',
-                    'div.el-form-item.is-required.asterisk-left input'
-                ];
-
-                for (const selector of shadowSelectors) {
-                    const shadowInput = shadowHost.shadowRoot.querySelector(selector);
-                    if (shadowInput) {
-                        shadowInput.scrollIntoView({behavior: 'smooth', block: 'center'});
-                        shadowInput.focus();
-                        shadowInput.value = text;
-                        shadowInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        shadowInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        shadowInput.dispatchEvent(new Event('blur', { bubbles: true }));
-                        return true;
-                    }
-                }
-            }
-
-            // Try regular DOM as fallback
-            const inputSelectors = [
-                'input[type="password"]',
-                'input.el-input__inner[type="password"]',
-                'input[autocomplete="off"][type="password"]',
-                'input[tabindex="0"][type="password"]',
-                'input[placeholder=" "][type="password"]',
-                'div.el-form-item.is-required input[type="password"]'
-            ];
-
-            for (const selector of inputSelectors) {
-                const inputs = document.querySelectorAll(selector);
-                for (const input of inputs) {
-                    if (input && input.offsetParent !== null) {
-                        input.scrollIntoView({behavior: 'smooth', block: 'center'});
-                        input.focus();
-                        input.value = text;
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                        input.dispatchEvent(new Event('change', { bubbles: true }));
-                        input.dispatchEvent(new Event('blur', { bubbles: true }));
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }''', "#Partiu14")
-
-        if fallback_inserted:
-            print("✓ Password inserted successfully using JavaScript fallback!")
-            return True
-
-        print("❌ Could not find or insert into password input using any method.")
-        return False
-
-    except Exception as e:
-        print(f"❌ Error in insert_password: {str(e)}")
-        return False
 
 def click_on_entrar_button(page):
     """
@@ -521,8 +168,7 @@ def click_on_entrar_button(page):
                         }}
                         return false;
                     }}''')
-                    if clicked:
-                        return True
+                    if clicked: return True
 
                 elif approach["type"] == "xpath":
                     # Force click via Playwright locator
@@ -846,34 +492,28 @@ def click_to_close_pop_up(page):
         print(f"Error in click_to_close_pop_up: {str(e)}")
         return False
 
-def click_on_postar_btn(page):
+def click_On_Postar_btn(page):
     """
-    Attempt to find and click the 'Postar' button using multiple approaches.
+    Attempt to find and click the "Postar" button using multiple approaches.
     """
     try:
-        # List of selectors to try
+        # List of selectors to try (reordered to prioritize the working approach)
         selectors = [
-            # Direct CSS selector
-            "div > nav > div:nth-child(3) > svg",
-            # Alternative CSS selectors
-            "nav.menu div.menu__item:nth-child(3)",
-            "div.menu__item svg[data-icon='plus']",
-            "svg.fa-plus",
-            # JavaScript path (from shadow root)
-            "document.querySelector(\"#privacy-web-floatmenu\").shadowRoot.querySelector(\"div > nav > div:nth-child(3) > svg\")",
+            # Shadow DOM JavaScript path (moved first as it succeeds)
+            "document.querySelector('#privacy-web-floatmenu').shadowRoot.querySelector('div > nav > div:nth-child(3)')",
             # XPath
-            "//*[@id=\"privacy-web-floatmenu\"]//div/nav/div[3]/svg",
-            # Alternative XPath
-            "//nav[@class='menu']/div[3]",
-            "//svg[@data-icon='plus']"
+            "//*[@id='privacy-web-floatmenu']//div/nav/div[3]",
+            # Direct CSS selector (moved last as it often fails)
+            "div > nav > div:nth-child(3)"
         ]
-
         # Try each selector
         for selector in selectors:
             try:
+                #print(f"Trying Postar button selector: {selector}")
+                
                 # Handle different selector types
                 if selector.startswith("document.querySelector"):
-                    # JavaScript selector (handles shadow DOM)
+                    # JavaScript selector
                     button_clicked = page.evaluate(f'''() => {{
                         const button = {selector};
                         if (button) {{
@@ -883,9 +523,11 @@ def click_on_postar_btn(page):
                         }}
                         return false;
                     }}''')
+                    
                     if button_clicked:
+                        #print(f"Successfully clicked Postar button with JS selector")
                         return True
-
+                
                 elif selector.startswith('/'):
                     # XPath selector
                     xpath_elements = page.locator(f"xpath={selector}")
@@ -894,10 +536,10 @@ def click_on_postar_btn(page):
                             # Force visibility
                             page.evaluate(f'''(selector) => {{
                                 const element = document.evaluate(
-                                    `{selector}`, 
-                                    document, 
-                                    null, 
-                                    XPathResult.FIRST_ORDERED_NODE_TYPE, 
+                                    `{selector}`,
+                                    document,
+                                    null,
+                                    XPathResult.FIRST_ORDERED_NODE_TYPE,
                                     null
                                 ).singleNodeValue;
                                 if (element) {{
@@ -906,13 +548,15 @@ def click_on_postar_btn(page):
                                     element.style.display = 'block';
                                 }}
                             }}''', selector)
+                            
                             # Scroll and click
                             xpath_elements.first.scroll_into_view_if_needed()
                             xpath_elements.first.click(force=True)
+                            #print(f"Successfully clicked Postar button with XPath")
                             return True
                         except Exception as e:
                             print(f"XPath click failed: {str(e)}")
-
+                
                 else:
                     # CSS selector
                     css_elements = page.locator(selector)
@@ -927,67 +571,74 @@ def click_on_postar_btn(page):
                                     element.style.display = 'block';
                                 }}
                             }}''', selector)
+                            
                             # Scroll and click
                             css_elements.first.scroll_into_view_if_needed()
                             css_elements.first.click(force=True)
+                            #print(f"Successfully clicked Postar button with CSS selector")
                             return True
                         except Exception as e:
                             print(f"CSS selector click failed: {str(e)}")
-
+                
             except Exception as e:
                 print(f"Failed with Postar button selector {selector}: {str(e)}")
                 continue
-
-        # Fallback JavaScript approach for shadow DOM
+        
+        # Fallback JavaScript approach
+        print("Trying JavaScript fallback approach for Postar button...")
         fallback_clicked = page.evaluate('''() => {
-            // Try to access shadow root
-            const floatMenu = document.querySelector('#privacy-web-floatmenu');
-            if (floatMenu && floatMenu.shadowRoot) {
-                const postarBtn = floatMenu.shadowRoot.querySelector('div > nav > div:nth-child(3)');
-                if (postarBtn) {
-                    postarBtn.scrollIntoView({behavior: 'smooth', block: 'center'});
-                    postarBtn.click();
-                    return true;
+            // Try finding elements with "Postar" text
+            const buttonSelectors = [
+                'div.menu__item',
+                'nav > div',
+                'div[tabindex="0"]'
+            ];
+            
+            for (const selector of buttonSelectors) {
+                const elements = document.querySelectorAll(selector);
+                for (const element of elements) {
+                    if (element && element.textContent.includes('Postar')) {
+                        element.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        element.click();
+                        return true;
+                    }
                 }
             }
-
-            // Try finding by data-icon attribute
-            const plusIcons = document.querySelectorAll('svg[data-icon="plus"]');
-            for (const icon of plusIcons) {
-                const parentDiv = icon.closest('div.menu__item');
-                if (parentDiv) {
-                    parentDiv.scrollIntoView({behavior: 'smooth', block: 'center'});
-                    parentDiv.click();
-                    return true;
+            
+            // Try finding the plus icon
+            const svgSelectors = [
+                'svg.svg-inline--fa[data-icon="plus"]',
+                'svg[data-prefix="fak"][data-icon="plus"]'
+            ];
+            
+            for (const selector of svgSelectors) {
+                const svgElements = document.querySelectorAll(selector);
+                for (const svg of svgElements) {
+                    if (svg) {
+                        const parent = svg.closest('div.menu__item');
+                        if (parent) {
+                            parent.scrollIntoView({behavior: 'smooth', block: 'center'});
+                            parent.click();
+                            return true;
+                        }
+                    }
                 }
             }
-
-            // Try finding by text content "Postar"
-            const menuItems = document.querySelectorAll('div.menu__item');
-            for (const item of menuItems) {
-                const textSpan = item.querySelector('span.text-menu');
-                if (textSpan && textSpan.textContent.trim() === 'Postar') {
-                    item.scrollIntoView({behavior: 'smooth', block: 'center'});
-                    item.click();
-                    return true;
-                }
-            }
-
             return false;
         }''')
-
+        
         if fallback_clicked:
+            print("Successfully clicked Postar button using JavaScript fallback!")
             return True
-
+        
         print("Could not find or click Postar button using any method.")
         return False
-
+    
     except Exception as e:
-        print(f"Error in click_on_postar_btn: {str(e)}")
+        print(f"Error in click_On_Postar_btn: {str(e)}")
         return False
 
-
-#def click_On_Feed_btn(page):
+def click_On_Feed_btn(page):
     """
     Attempt to find and click the Feed option in the Postar modal window.
     """
@@ -1069,49 +720,6 @@ def click_on_postar_btn(page):
         print("Could not find or click Feed button using any method.")
         return False
     
-    except Exception as e:
-        print(f"Error in click_On_Feed_btn: {str(e)}")
-        return False
-
-def click_On_Feed_btn(page):
-    """
-    Attempt to find and click the Feed option in the Postar modal window.
-    """
-    try:
-        # List of selectors (prioritized: attribute-based)
-        selectors = [
-            # Attribute-based CSS
-            {"selector": 'div.options__option:has(svg[data-icon="feed"])', "options": {}},
-            # Stable XPath
-            {"selector": "//div[contains(@class, 'options__option') and .//svg[@data-icon='feed']]", "options": {"is_xpath": True}},
-            # Text-based fallback
-            {"selector": 'div.options__option:has-text("Feed")', "options": {}},
-        ]
-
-        for sel in selectors:
-            if safe_click(page, sel["selector"], sel["options"]):
-                return True
-
-        # Fallback JavaScript (with null checks)
-        fallback_clicked = page.evaluate('''() => {
-            const options = document.querySelectorAll('div.options__option');
-            for (const option of options) {
-                if (option.querySelector('svg[data-icon="feed"]')) {
-                    option.scrollIntoView({behavior: 'smooth', block: 'center'});
-                    option.click();
-                    return true;
-                }
-            }
-            return false;
-        }''')
-
-        if fallback_clicked:
-            print("Successfully clicked Feed button using JavaScript fallback!")
-            return True
-
-        print("Could not find or click Feed button using any method.")
-        return False
-
     except Exception as e:
         print(f"Error in click_On_Feed_btn: {str(e)}")
         return False
@@ -1420,65 +1028,65 @@ def mark_media_as_used(media_name):
     with open(history_path, "a", encoding="utf-8") as f:
         f.write(media_name + "\n")
         
-def click_to_schedule_post(page):
+def click_On_Agendar_publicacao_btn(page):
     """
-    Attempt to find and click the 'Agendar publicação' (Schedule post) switch using multiple approaches.
+    Attempt to find and click the 'Agendar Publicação' switch using multiple approaches.
     """
     try:
-        # List of selectors to try
+        # List of selectors to try for the switch element
         selectors = [
-            # Direct CSS selector
-            "#el-id-5287-17 > form > div.post-attributes > div.post-attributes__switchs.d-flex.flex-column.gap-3.mt-4 > div:nth-child(1) > div:nth-child(2) > div",
-            # Alternative CSS selectors
-            "div.post-attributes__switchs-item:nth-child(1) div.el-switch",
-            "div.el-switch input[id^='el-id'][type='checkbox']",
-            ".post-attributes__switchs .el-switch",
-            # Input directly
-            "input.el-switch__input[role='switch'][id^='el-id']",
-            # JavaScript path (from shadow root)
-            "document.querySelector(\"#privacy-web-publisher\").shadowRoot.querySelector(\"#el-id-5287-17 > form > div.post-attributes > div.post-attributes__switchs.d-flex.flex-column.gap-3.mt-4 > div:nth-child(1) > div:nth-child(2) > div\")",
+            # CSS selector
+            "#el-id-4154-90 > form > div.post-attributes > div.post-attributes__switchs.d-flex.flex-column.gap-3.mt-4 > div:nth-child(1) > div:nth-child(2) > div",
+            # Shadow DOM JavaScript path
+            "document.querySelector(\"#privacy-web-publisher\").shadowRoot.querySelector(\"#el-id-4154-90 > form > div.post-attributes > div.post-attributes__switchs.d-flex.flex-column.gap-3.mt-4 > div:nth-child(1) > div:nth-child(2) > div\")",
             # XPath
-            "//*[@id=\"el-id-5287-17\"]/form/div[4]/div[2]/div[1]/div[2]/div",
-            # Alternative XPath
-            "//span[contains(text(), 'Agendar publicação')]/ancestor::div[@class='post-attributes__switchs-item']//div[@class='el-switch']",
-            "//input[@class='el-switch__input' and @type='checkbox']"
+            "//*[@id=\"el-id-4154-90\"]/form/div[4]/div[2]/div[1]/div[2]/div",
+            # Alternative selector targeting the switch class
+            ".el-switch",
+            # Input checkbox within the switch
+            ".el-switch__input[type='checkbox']"
         ]
 
         # Try each selector
         for selector in selectors:
             try:
+                #print(f"Trying Agendar Publicação selector: {selector}")
+                
                 # Handle different selector types
                 if selector.startswith("document.querySelector"):
-                    # JavaScript selector (handles shadow DOM)
-                    button_clicked = page.evaluate(f'''() => {{
+                    # JavaScript selector for shadow DOM
+                    switch_clicked = page.evaluate(f'''() => {{
                         try {{
-                            const element = {selector};
-                            if (element) {{
-                                element.scrollIntoView({{behavior: 'smooth', block: 'center'}});
-                                element.click();
+                            const switchElement = {selector};
+                            if (switchElement) {{
+                                switchElement.scrollIntoView({{behavior: 'smooth', block: 'center'}});
+                                
+                                // Check if it's a checkbox input or div element
+                                if (switchElement.tagName === 'INPUT') {{
+                                    switchElement.checked = !switchElement.checked;
+                                    switchElement.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                }} else {{
+                                    switchElement.click();
+                                }}
                                 return true;
                             }}
-                            // Try clicking the input inside
-                            const input = element?.querySelector('input.el-switch__input');
-                            if (input) {{
-                                input.scrollIntoView({{behavior: 'smooth', block: 'center'}});
-                                input.click();
-                                return true;
-                            }}
-                        }} catch(e) {{
-                            console.error(e);
+                            return false;
+                        }} catch (e) {{
+                            console.error('Shadow DOM access error:', e);
+                            return false;
                         }}
-                        return false;
                     }}''')
-                    if button_clicked:
+                    
+                    if switch_clicked:
+                        #print(f"Successfully clicked Agendar Publicação switch with JS selector")
                         return True
-
+                
                 elif selector.startswith('/'):
                     # XPath selector
                     xpath_elements = page.locator(f"xpath={selector}")
                     if xpath_elements.count() > 0:
                         try:
-                            # Force visibility
+                            # Force visibility and ensure it's clickable
                             page.evaluate(f'''(selector) => {{
                                 const element = document.evaluate(
                                     `{selector}`, 
@@ -1491,15 +1099,18 @@ def click_to_schedule_post(page):
                                     element.style.opacity = '1';
                                     element.style.visibility = 'visible';
                                     element.style.display = 'block';
+                                    element.style.pointerEvents = 'auto';
                                 }}
                             }}''', selector)
+                            
                             # Scroll and click
                             xpath_elements.first.scroll_into_view_if_needed()
                             xpath_elements.first.click(force=True)
+                            #print(f"Successfully clicked Agendar Publicação switch with XPath")
                             return True
                         except Exception as e:
                             print(f"XPath click failed: {str(e)}")
-
+                
                 else:
                     # CSS selector
                     css_elements = page.locator(selector)
@@ -1512,79 +1123,71 @@ def click_to_schedule_post(page):
                                     element.style.opacity = '1';
                                     element.style.visibility = 'visible';
                                     element.style.display = 'block';
+                                    element.style.pointerEvents = 'auto';
                                 }}
                             }}''', selector)
+                            
                             # Scroll and click
                             css_elements.first.scroll_into_view_if_needed()
                             css_elements.first.click(force=True)
+                            #print(f"Successfully clicked Agendar Publicação switch with CSS selector")
                             return True
                         except Exception as e:
                             print(f"CSS selector click failed: {str(e)}")
-
+                
             except Exception as e:
-                print(f"Failed with schedule switch selector {selector}: {str(e)}")
+                print(f"Failed with Agendar Publicação selector {selector}: {str(e)}")
                 continue
-
-        # Fallback JavaScript approach for shadow DOM and dynamic IDs
+        
+        # Fallback JavaScript approach for finding the switch
+        print("Trying JavaScript fallback approach for Agendar Publicação switch...")
         fallback_clicked = page.evaluate('''() => {
-            // Try to access shadow root
-            const publisher = document.querySelector('#privacy-web-publisher');
-            if (publisher && publisher.shadowRoot) {
-                // Find by text content "Agendar publicação"
-                const switchItems = publisher.shadowRoot.querySelectorAll('.post-attributes__switchs-item');
-                for (const item of switchItems) {
-                    const text = item.querySelector('span.font-sm');
-                    if (text && text.textContent.includes('Agendar publicação')) {
-                        const switchEl = item.querySelector('.el-switch');
-                        if (switchEl) {
-                            switchEl.scrollIntoView({behavior: 'smooth', block: 'center'});
-                            switchEl.click();
-                            return true;
+            // Try finding switch elements
+            const switchSelectors = [
+                '.el-switch',
+                '[role="switch"]',
+                'input[type="checkbox"][role="switch"]',
+                '.post-attributes__switchs .el-switch'
+            ];
+            
+            for (const selector of switchSelectors) {
+                const switches = document.querySelectorAll(selector);
+                for (const switchElement of switches) {
+                    // Look for elements that might be related to scheduling/publication
+                    const parentText = switchElement.parentElement?.innerText || '';
+                    const surroundingText = switchElement.closest('div')?.innerText || '';
+                    
+                    if (parentText.includes('Agendar') || 
+                        parentText.includes('Publicação') || 
+                        surroundingText.includes('Agendar') || 
+                        surroundingText.includes('Publicação') ||
+                        switchElement.getAttribute('aria-label')?.includes('Agendar')) {
+                        
+                        switchElement.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        
+                        // Handle different element types
+                        if (switchElement.tagName === 'INPUT') {
+                            switchElement.checked = !switchElement.checked;
+                            switchElement.dispatchEvent(new Event('change', { bubbles: true }));
+                        } else {
+                            switchElement.click();
                         }
-                        // Try clicking input directly
-                        const input = item.querySelector('input.el-switch__input');
-                        if (input) {
-                            input.scrollIntoView({behavior: 'smooth', block: 'center'});
-                            input.click();
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            // Try finding by calendar icon + switch combination
-            const calendarIcons = document.querySelectorAll('svg[data-icon="calendar"]');
-            for (const icon of calendarIcons) {
-                const switchItem = icon.closest('.post-attributes__switchs-item');
-                if (switchItem) {
-                    const switchEl = switchItem.querySelector('.el-switch');
-                    if (switchEl) {
-                        switchEl.scrollIntoView({behavior: 'smooth', block: 'center'});
-                        switchEl.click();
                         return true;
                     }
                 }
             }
-
-            // Try finding first switch in post-attributes
-            const firstSwitch = document.querySelector('.post-attributes__switchs .el-switch');
-            if (firstSwitch) {
-                firstSwitch.scrollIntoView({behavior: 'smooth', block: 'center'});
-                firstSwitch.click();
-                return true;
-            }
-
             return false;
         }''')
-
+        
         if fallback_clicked:
+            print("Successfully clicked Agendar Publicação switch using JavaScript fallback!")
             return True
-
-        print("Could not find or click schedule switch using any method.")
+        
+        print("Could not find or click Agendar Publicação switch using any method.")
         return False
-
+    
     except Exception as e:
-        print(f"Error in click_to_schedule_post: {str(e)}")
+        print(f"Error in click_On_Agendar_publicacao_btn: {str(e)}")
         return False
 
 def insert_new_media(page):
@@ -3212,7 +2815,7 @@ def click_on_aplicar_button(page):
         print(f"Error in click_on_aplicar_button: {str(e)}")
         return False
 
-#def click_On_Avancar_btn(page):
+def click_On_Avancar_btn(page):
     """
     Fast version - uses known working selector first
     """
@@ -3246,28 +2849,6 @@ def click_on_aplicar_button(page):
         print(f"Error clicking Avançar button: {str(e)}")
         return False
 
-def click_On_Avancar_btn(page):
-    """
-    Fast version - uses known working selector first with safe_click.
-    """
-    try:
-        selectors = [
-            {"selector": 'button.el-button--gradient.is-block', "options": {"timeout": 3000}},
-            {"selector": 'button.el-button--gradient', "options": {}},
-            {"selector": 'div.component-button > button', "options": {}},
-            {"selector": 'button:has-text("Avançar")', "options": {}},
-        ]
-
-        for sel in selectors:
-            if safe_click(page, sel["selector"], sel["options"]):
-                return True
-
-        return False
-
-    except Exception as e:
-        print(f"Error clicking Avançar button: {str(e)}")
-        return False
-
 def click_On_Agendar_btn(page):
     """
     Simple method to click the Agendar button in shadow DOM
@@ -3297,7 +2878,7 @@ def click_On_Agendar_btn(page):
         print(f"Error clicking Agendar button: {e}")
         return False
 
-#def click_On_Concluido_btn(page):
+def click_On_Concluido_btn(page):
     """
     Click on the 'Concluido' button inside the shadow DOM
     """
@@ -3365,52 +2946,6 @@ def click_On_Agendar_btn(page):
         print("Could not find or click Concluido button")
         return False
         
-    except Exception as e:
-        print(f"Error in click_On_Concluido_btn: {str(e)}")
-        return False
-
-def click_On_Concluido_btn(page):
-    """
-    Click on the 'Concluido' button inside the shadow DOM.
-    """
-    try:
-        # List of selectors (prioritized: text-based)
-        selectors = [
-            # Text-based
-            {"selector": 'button:has-text("Concluido"), button:has-text("Concluído")', "options": {}},
-            # Shadow DOM with Playwright
-            {"selector": '#privacy-web-publisher >> button.el-button--gradient:has-text("Concluido")', "options": {}},
-            # Component structure
-            {"selector": 'div.component-button button:has-text("Concluido")', "options": {}},
-        ]
-
-        for sel in selectors:
-            if safe_click(page, sel["selector"], sel["options"]):
-                return True
-
-        # Fallback JavaScript (with null checks)
-        fallback_clicked = page.evaluate('''() => {
-            const host = document.querySelector('#privacy-web-publisher');
-            if (!host || !host.shadowRoot) return false;
-            const shadowRoot = host.shadowRoot;
-            const buttons = shadowRoot.querySelectorAll('button');
-            for (const button of buttons) {
-                const text = button.textContent;
-                if (text.includes('Concluido') || text.includes('Concluído')) {
-                    button.click();
-                    return true;
-                }
-            }
-            return false;
-        }''')
-
-        if fallback_clicked:
-            print("Successfully clicked Concluido button via JavaScript")
-            return True
-
-        print("Could not find or click Concluido button")
-        return False
-
     except Exception as e:
         print(f"Error in click_On_Concluido_btn: {str(e)}")
         return False
@@ -3813,188 +3348,26 @@ def click_on_text_area_2(page):
         print(f"Error in click_on_text_area_2: {str(e)}")
         return False
 
-def safe_click(page, selector, options=None):
-    """
-    Reusable helper to safely click an element with retries, waits, and visibility forcing.
-    Options: is_xpath (bool), is_js (bool), timeout (int), retries (int), is_switch (bool).
-    """
-    options = options or {}
-    is_xpath = options.get('is_xpath', False)
-    is_js = options.get('is_js', False)
-    timeout = options.get('timeout', 5000)
-    retries = options.get('retries', 3)
-    is_switch = options.get('is_switch', False)
-
-    for attempt in range(retries):
-        try:
-            if is_js:
-                # Execute JS selector
-                clicked = page.evaluate(selector)
-                if clicked:
-                    return True
-            else:
-                locator_str = f"xpath={selector}" if is_xpath else selector
-                elements = page.locator(locator_str)
-
-                if elements.count() == 0:
-                    raise Exception("Element not found")
-
-                element = elements.first
-                # Wait for visibility/attachment
-                element.wait_for(state="visible", timeout=timeout)
-
-                # Force visibility via JS
-                page.evaluate('''(el) => {
-                    el.style.opacity = '1';
-                    el.style.visibility = 'visible';
-                    el.style.display = 'block';
-                    el.style.pointerEvents = 'auto';
-                }''', element.element_handle())
-
-                # Scroll and click
-                element.scroll_into_view_if_needed()
-                if is_switch:
-                    # Handle switch toggle
-                    page.evaluate('''(el) => {
-                        if (el.tagName === 'INPUT') {
-                            el.checked = !el.checked;
-                            el.dispatchEvent(new Event('change', { bubbles: true }));
-                        } else {
-                            el.click();
-                        }
-                    }''', element.element_handle())
-                else:
-                    element.click(force=True, timeout=timeout)
-                return True
-        except Exception as e:
-            print(f"Attempt {attempt + 1} failed for selector '{selector}': {str(e)}")
-            # Log HTML snippet for debugging
-            try:
-                html_snippet = page.inner_html('body')[:500]  # Truncate for brevity
-                print(f"HTML snippet: {html_snippet}")
-            except:
-                pass
-            time.sleep(1)  # Short delay before retry
-    return False
-
-def cleanup(pw=None, context=None, browser_process=None):
-    """Cleanup resources properly"""
-    if context:
-        try:
-            context.close()
-        except Exception as e:
-            print(f"Error closing context: {e}")
-    if pw:
-        try:
-            pw.stop()
-        except Exception as e:
-            print(f"Error stopping Playwright: {e}")
-    if browser_process:
-        try:
-            browser_process.terminate()
-            browser_process.wait(timeout=5)
-        except Exception as e:
-            print(f"Error terminating browser process: {e}")
-    print("Recursos liberados")
-
 def main():
-    pw = None
-    context = None
-    page = None
-    browser_process = None
-
+    
     # 2. Launch Browser via the Native Hook method
     try:
-        pw, context, browser_process = open_chrome_in_privacy_login_page()
-        page = context.pages[0]  # Grab the active Privacy board page
-        print("✓ Browser launched successfully")
+        pw, context = open_chrome_in_privacy_login_page()
+        page = context.pages[0] # Grab the active Privacy board page
     except Exception as e:
-        print(f"❌ Failed to launch or hook browser: {e}")
-        cleanup(pw, context, browser_process)
+        print(f"Failed to launch or hook browser: {e}")
         return
 
     # 3. Automation and Interaction
     try:
         print("Waiting for page load...")
         page.wait_for_load_state("domcontentloaded")
-
+        
         # Fullscreen Mode
-        try:
-            import pyautogui
-            pyautogui.press('f11')
-            page.wait_for_timeout(3000)
-        except ImportError:
-            print("Warning: pyautogui not installed, skipping fullscreen")
-
-        # region Try to insert username with retries
-        print("\nAttempting to insert username...")
-        max_retries = 3
-        username_inserted = False
-
-        for attempt in range(max_retries):
-            print(f"Username attempt {attempt + 1}/{max_retries}")
-            if insert_username(page):
-                username_inserted = True
-                break
-            else:
-                print(f"✗ Username attempt {attempt + 1} failed.")
-                if attempt < max_retries - 1:
-                    print("Waiting before next attempt...")
-                    time.sleep(2)
-
-        if not username_inserted:
-            print("❌ Failed to insert username after all attempts.")
-            page.screenshot(path="debug_username_failed.png")
-
-        time.sleep(2)
-        # endregion
-
-        # region Try to insert password with retries
-        print("\nAttempting to insert password...")
-        max_retries = 3
-        password_inserted = False
-
-        for attempt in range(max_retries):
-            print(f"Password attempt {attempt + 1}/{max_retries}")
-            if insert_password(page):
-                password_inserted = True
-                break
-            else:
-                print(f"✗ Password attempt {attempt + 1} failed.")
-                if attempt < max_retries - 1:
-                    print("Waiting before next attempt...")
-                    time.sleep(2)
-
-        if not password_inserted:
-            print("❌ Failed to insert password after all attempts.")
-            page.screenshot(path="debug_password_failed.png")
-
-        time.sleep(2)
-        # endregion
-
-        # region Try to click the Entrar button with retries
-        print("\nAttempting to click Entrar button...")
-        max_retries = 3
-        login_successful = False
-
-        for attempt in range(max_retries):
-            print(f"Attempt {attempt + 1}: Clicking Entrar...")
-            if click_on_entrar_button(page):
-                print("✓ Success: Entrar button clicked.")
-                login_successful = True
-                break
-            else:
-                print(f"✗ Attempt {attempt + 1} failed. Maybe you are already logged in!")
-                if attempt < max_retries - 1:
-                    time.sleep(2)
-
-        # Wait for login to complete
-        if login_successful:
-            print("\nWaiting for login to complete...")
-            page.wait_for_timeout(5000)
-            print(f"Current URL: {page.url}")
-            print("✓ Login process completed!")
-        # endregion
+        import pyautogui
+        pyautogui.press('f11')
+        
+        time.sleep(3)
         
         # region try to clear any pop-ups blocking the view
         print("Checking for pop-ups to close...")
@@ -4018,6 +3391,20 @@ def main():
         available_captions = captions_operation()
         available_media = select_media()
 
+        # region Try to click the Entrar button with retries
+        max_retries = 3
+        for attempt in range(max_retries):
+            print(f"Attempt {attempt + 1}: Clicking Entrar...")
+            if click_on_entrar_button(page):
+                print("Success: Entrar button clicked.")
+                break
+            else:
+                print(f"Attempt {attempt + 1} failed. Maybe you are already logged in!")
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+        
+        # endregion
+
         # Loop for increment hours
         for hora in range(24):
             hora_str = f"{hora:02d}"
@@ -4027,21 +3414,24 @@ def main():
             for minute_str, click_func in minute_functions.items():
                 max_retries = 3
                                 
-                # region Try to click the Postar button with retries
-                max_retries = 3
+                # region Click on Postar button with retries
                 for attempt in range(max_retries):
-                    if click_on_postar_btn(page):
-                        print("Successfully clicked Postar button!")
+                    if click_On_Postar_btn(page):
+                        #print(f"[{minute_str}] Postar button clicked.")
                         break
                     else:
-                        print(f"Attempt {attempt + 1} failed.")
+                        print(f"[{minute_str}] Postar Attempt {attempt + 1} failed.")
                         if attempt < max_retries - 1:
-                            print("Waiting before next attempt...")
-                            page.wait_for_timeout(1000)  # Wait 1 second before retrying
+                            time.sleep(5) 
                 else:
-                    print("Failed to click Postar button after all attempts.")
+                    # This runs only if all retries for Postar failed
+                    print(f"CRITICAL: Failed Postar at {minute_str}. Refreshing and skipping...")
+                    page.reload()
+                    time.sleep(5)
+                    continue # Skips to the next minute iteration
 
-                page.wait_for_timeout(3000)
+                time.sleep(3)
+
                 # endregion
 
                 # region Click on Feed button with retries
@@ -4126,27 +3516,28 @@ def main():
                     continue # Skips to the next minute iteration
                 # endregion
 
-                page.wait_for_timeout(5000)
-
-                # region Try to click the Schedule switch with retries
-                max_retries = 3
+                # region Try to click the Agendar Publicação switch with retries
                 for attempt in range(max_retries):
-                    if click_to_schedule_post(page):
-                        print("Successfully clicked Schedule switch!")
+                    if click_On_Agendar_publicacao_btn(page): 
+                        #print(f"[{minute_str}] Agendar Publicação switch enabled.")
                         break
                     else:
-                        print(f"Attempt {attempt + 1} failed.")
+                        print(f"[{minute_str}] Agendar Attempt {attempt + 1} failed.")
                         if attempt < max_retries - 1:
-                            print("Waiting before next attempt...")
-                            page.wait_for_timeout(1000)  # Wait 1 second before retrying
+                            time.sleep(3)
                 else:
-                    print("Failed to click Schedule switch after all attempts.")
+                    # Failure handling: Refresh, wait, and skip to next minute loop iteration
+                    print(f"CRITICAL: Could not toggle Agendar at {minute_str}. Refreshing...")
+                    page.reload()
+                    time.sleep(5)
+                    continue # Jumps to the next minute in minute_functions.items()
 
-                page.wait_for_timeout(3000)
+                time.sleep(2)
                 # endregion
 
                 # region Try to click tomorrow's day with retries
-                
+                #print("Starting date selection for tomorrow...")
+
                 for attempt in range(max_retries):
                     if click_tomorrow(page):
                         #print(f"[{minute_str}] Tomorrow's date selected successfully.")
@@ -4162,9 +3553,12 @@ def main():
                     time.sleep(5)
                     continue  # Jumps to the next iteration of the minute loop
 
-                page.wait_for_timeout(3000)
-
+                # This part only runs if click_tomorrow was successful
+                time.sleep(2)
+                #print("Proceeding with posting instructions.")
                 # endregion
+
+                time.sleep(3)
 
                 # region Try to click time element with retries
                 for attempt in range(max_retries):
@@ -4182,7 +3576,7 @@ def main():
                     time.sleep(5)
                     continue # Skip to next minute iteration
 
-                page.wait_for_timeout(2000)
+                time.sleep(2)
                 # endregion
 
                 # region Try to click hour selection with retries
