@@ -1,12 +1,13 @@
 # Standard library imports
 import os
 import sys
-from openpyxl import load_workbook, Workbook
-import glob
+from openpyxl import load_workbook
 import time
 import subprocess
 from datetime import datetime, timedelta
 import warnings
+import numpy as np
+import pandas as pd 
 
 # Third-party imports
 from playwright.sync_api import sync_playwright
@@ -23,7 +24,6 @@ except ImportError:
     print("Instale com: pip install git+https://github.com/AtuboDad/playwright_stealth.git")
     sys.exit(1)
 # endregion
-
 
 def cleanup(pw=None, context=None, browser_process=None):
     """Cleanup resources properly"""
@@ -44,7 +44,6 @@ def cleanup(pw=None, context=None, browser_process=None):
         except Exception as e:
             print(f"Error terminating browser process: {e}")
     print("Recursos liberados")
-
 
 def open_chrome_in_privacy_login_page():
     # 1. Paths
@@ -92,25 +91,29 @@ def open_chrome_in_privacy_login_page():
         browser_process.kill()
         raise
 
-
 def insert_username(page):
     """
     Attempt to find the username input field and insert 'hacksimone29@gmail.com'.
     Handles Shadow DOM and multiple selector strategies.
     """
     try:
-        # List of selectors to try
+        # List of selectors to try (updated with new ID and paths)
         selectors = [
-            # Shadow DOM JavaScript selector (most reliable for this page)
-            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input#floating-input-i4nch77")',
+            # Shadow DOM JavaScript selector (most reliable for this page, updated with new ID)
+            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("#floating-input-jnygnm9")',
             'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input[type=\'email\']")',
+            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input.el-input__inner[type=\'email\']")',
             'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("div > div > div:nth-child(1) > div > form > div:nth-child(1) input")',
-            # Direct CSS selectors (if Shadow DOM is not present)
-            "input#floating-input-i4nch77",
+            # Direct CSS selectors (if Shadow DOM is not present, updated with new ID)
+            "#floating-input-jnygnm9",
+            "input#floating-input-jnygnm9",
             "input.el-input__inner[type='email']",
             "input[type='email'][autocomplete='off']",
             "input[placeholder=' '][type='email']",
-            # XPath (may not work with Shadow DOM)
+            # Generalized for dynamic IDs
+            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input[id^=\'floating-input-\']")',
+            # XPath (may not work with Shadow DOM, updated with new ID)
+            "//*[@id='floating-input-jnygnm9']",
             "//*[@id='privacy-web-auth']//div/div/div[1]/div/form/div[1]//input",
             "//input[@type='email' and contains(@id, 'floating-input')]",
             "//input[@class='el-input__inner' and @type='email']"
@@ -199,14 +202,16 @@ def insert_username(page):
                 print(f"Failed with username input selector {selector}: {str(e)}")
                 continue
 
-        # Fallback JavaScript approach with comprehensive search
+        # Fallback JavaScript approach with comprehensive search (updated with new patterns)
         print("Trying JavaScript fallback approach for username input...")
         fallback_inserted = page.evaluate('''(text) => {
             // Try Shadow DOM first
             const shadowHost = document.querySelector("#privacy-web-auth");
             if (shadowHost && shadowHost.shadowRoot) {
-                // Try multiple selectors inside shadow DOM
+                // Try multiple selectors inside shadow DOM (updated with new ID)
                 const shadowSelectors = [
+                    '#floating-input-jnygnm9',
+                    'input[id^="floating-input-"]',
                     'input[type="email"]',
                     'input.el-input__inner[type="email"]',
                     'input[autocomplete="off"][type="email"]',
@@ -230,6 +235,8 @@ def insert_username(page):
 
             // Try regular DOM as fallback
             const inputSelectors = [
+                '#floating-input-jnygnm9',
+                'input[id^="floating-input-"]',
                 'input[type="email"]',
                 'input.el-input__inner[type="email"]',
                 'input[autocomplete="off"][type="email"]',
@@ -266,27 +273,31 @@ def insert_username(page):
         print(f"❌ Error in insert_username: {str(e)}")
         return False
 
-
 def insert_password(page):
     """
     Attempt to find the password input field and insert '#Partiu15'.
     Handles Shadow DOM and multiple selector strategies.
     """
     try:
-        # List of selectors to try
+        # List of selectors to try (updated with new ID and paths)
         selectors = [
-            # Shadow DOM JavaScript selectors (most reliable for this page)
-            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input#floating-input-ue2x7hk")',
+            # Shadow DOM JavaScript selectors (most reliable for this page, updated with new ID)
+            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("#floating-input-sekcpj1")',
             'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input[type=\'password\']")',
+            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input.el-input__inner[type=\'password\']")',
             'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("div > div > div:nth-child(1) > div > form > div.el-form-item.is-required.asterisk-left input")',
             'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("div > div > div:nth-child(1) > div > form > div:nth-child(2) input")',
-            # Direct CSS selectors (if Shadow DOM is not present)
-            "input#floating-input-ue2x7hk",
+            # Direct CSS selectors (if Shadow DOM is not present, updated with new ID)
+            "#floating-input-sekcpj1",
+            "input#floating-input-sekcpj1",
             "input.el-input__inner[type='password']",
             "input[type='password'][autocomplete='off']",
             "input[placeholder=' '][type='password']",
             "div.el-form-item.is-required input[type='password']",
-            # XPath (may not work with Shadow DOM)
+            # Generalized for dynamic IDs
+            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input[id^=\'floating-input-\']")',
+            # XPath (may not work with Shadow DOM, updated with new ID)
+            "//*[@id='floating-input-sekcpj1']",
             "//*[@id='privacy-web-auth']//div/div/div[1]/div/form/div[2]//input",
             "//input[@type='password' and contains(@id, 'floating-input')]",
             "//input[@class='el-input__inner' and @type='password']",
@@ -376,14 +387,16 @@ def insert_password(page):
                 print(f"Failed with password input selector {selector}: {str(e)}")
                 continue
 
-        # Fallback JavaScript approach with comprehensive search
+        # Fallback JavaScript approach with comprehensive search (updated with new patterns)
         print("Trying JavaScript fallback approach for password input...")
         fallback_inserted = page.evaluate('''(text) => {
             // Try Shadow DOM first
             const shadowHost = document.querySelector("#privacy-web-auth");
             if (shadowHost && shadowHost.shadowRoot) {
-                // Try multiple selectors inside shadow DOM
+                // Try multiple selectors inside shadow DOM (updated with new ID)
                 const shadowSelectors = [
+                    '#floating-input-sekcpj1',
+                    'input[id^="floating-input-"]',
                     'input[type="password"]',
                     'input.el-input__inner[type="password"]',
                     'input[autocomplete="off"][type="password"]',
@@ -409,6 +422,8 @@ def insert_password(page):
 
             // Try regular DOM as fallback
             const inputSelectors = [
+                '#floating-input-sekcpj1',
+                'input[id^="floating-input-"]',
                 'input[type="password"]',
                 'input.el-input__inner[type="password"]',
                 'input[autocomplete="off"][type="password"]',
@@ -445,7 +460,6 @@ def insert_password(page):
     except Exception as e:
         print(f"❌ Error in insert_password: {str(e)}")
         return False
-
 
 def click_on_entrar_button(page):
     """
@@ -513,7 +527,6 @@ def click_on_entrar_button(page):
         print(f"Error in click_on_entrar_button: {e}")
         return False
 
-
 def try_close_popup(page):
     selectors = [
         'button:has-text("Fechar")',
@@ -533,7 +546,6 @@ def try_close_popup(page):
         except:
             continue
     return False
-
 
 def click_extrato_tab(page):
     selectors = [
@@ -558,7 +570,6 @@ def click_extrato_tab(page):
             continue
     print("Não conseguiu localizar a aba Extrato")
     return False
-
 
 def click_on_calendar(page):
     """
@@ -649,7 +660,6 @@ def click_on_calendar(page):
         print(f"Error in click_on_calendar: {str(e)}")
         return False
 
-
 def click_on_yesterday(page):
     """
     Calculates yesterday's date and clicks it twice in the Element calendar.
@@ -700,7 +710,6 @@ def click_on_yesterday(page):
     except Exception as e:
         print(f"Error in click_on_yesterday: {str(e)}")
         return False
-
 
 def click_on_extrato_de_venda_next_page_button(page):
     """
@@ -760,7 +769,6 @@ def click_on_extrato_de_venda_next_page_button(page):
     except Exception as e:
         print(f"Error in click_on_extrato_de_venda_next_page_button: {str(e)}")
         return False
-
 
 def click_on_gerar_relatorio_button(page):
     """
@@ -841,7 +849,6 @@ def click_on_gerar_relatorio_button(page):
         print(f"Error in click_on_gerar_relatorio_button: {str(e)}")
         return False
 
-
 def click_on_confirmar_button(page):
     """
     Finds and clicks the 'Confirmar' button inside the 'Gerar Relatório' overlay dialog.
@@ -902,115 +909,570 @@ def click_on_confirmar_button(page):
         print(f"Error in click_on_confirmar_button: {str(e)}")
         return False
 
+def confirm_download_and_rebuild_report(page, click_on_confirmar_button):
+    target_folder = r"G:\Meu Drive\Financeiro"
+    os.makedirs(target_folder, exist_ok=True)
+    max_retries = 3
+    download_success = False
+    downloaded_file = None  # To store the path of the downloaded file
 
-def generate_top_spenders_from_report():
-    """
-    Reads the most recent XLSX report from the target folder, filters rows where Column E contains "Chat" or "Mimo - Chat",
-    groups and sums Column D (Sua comissão) by unique values in Column H (Comprador), sorts by descending sum,
-    saves the results to a new Excel file with yesterday's date in the format dd_mm_yyyy_top_spenders_privacy_vip.xlsx,
-    and deletes the original report file.
-    """
-    target_folder = r"G:\Meu Drive\Sexting - Histórico"
+    for attempt in range(max_retries):
+        try:
+            print(f"Attempt {attempt + 1}: Waiting for download event...")
+            # 1. Start the listener
+            with page.expect_download(timeout=60000) as download_info:
+                # 2. Trigger the click ONLY HERE
+                if click_on_confirmar_button(page):
+                    print("Confirm button clicked. Processing file...")
+                    # 3. Capture and save the file
+                    download = download_info.value
+                    downloaded_file = os.path.join(target_folder, download.suggested_filename)
+                    download.save_as(downloaded_file)
+                    print(f"File successfully saved to: {downloaded_file}")
+                    download_success = True
+                    break
+                else:
+                    print(f"Click logic could not find the button on attempt {attempt + 1}")
+        except Exception as e:
+            print(f"Attempt {attempt + 1} failed: {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(2)
 
+    if not download_success:
+        print("Failed to capture the download after all retries.")
+        return  # Exit if download failed
+
+    # Now process the downloaded file
     try:
-        # 1. Find the most recent .xlsx file
-        list_of_files = glob.glob(os.path.join(target_folder, "*.xlsx"))
-        if not list_of_files:
-            print("No XLSX files found in the directory.")
-            return False
+        # Read the downloaded Excel file with pandas
+        df = pd.read_excel(downloaded_file)
 
-        latest_file = max(list_of_files, key=os.path.getctime)
-        print(f"Reading latest Excel report: {os.path.basename(latest_file)}")
+        # Sum all values in column D (4th column, 0-based index)
+        commission_sum = df.iloc[:, 3].sum()
 
-        # 2. Load the Workbook
-        wb = load_workbook(latest_file, data_only=True)
-        sheet = wb.active
+        # Target Excel file
+        target_excel = os.path.join(target_folder, 'receita_bruta_diaria.xlsx')
 
-        # Dictionary to hold sums: {comprador: total_commission}
-        spenders_dict = {}
+        # Use openpyxl to load the workbook and preserve formatting
+        if os.path.exists(target_excel):
+            wb = load_workbook(target_excel)
+            ws = wb.active  # Assume a planilha ativa (ajuste se houver múltiplas)
+        else:
+            # Se não existir, crie um novo com openpyxl
+            from openpyxl import Workbook
+            wb = Workbook()
+            ws = wb.active
 
-        # 3. Iterate through rows starting from row 2
-        for row in sheet.iter_rows(min_row=2, values_only=True):
-            if len(row) >= 8:  # Ensure row has at least columns A to H (indices 0-7)
-                tipo_entrada = row[4]  # Column E (index 4)
-                comprador = row[7]     # Column H (index 7)
-                commission_raw = row[3]  # Column D (index 3)
+        # Find the last filled row in column B (coluna 2, 1-based in openpyxl)
+        col_index = 2  # Coluna B (A=1, B=2, C=3, etc.)
+        last_filled_row = 0
+        for row in range(1, ws.max_row + 1):
+            cell_value = ws.cell(row=row, column=col_index).value
+            if cell_value is not None:  # Considera preenchido se não for None
+                last_filled_row = row
 
-                # Filter by "Chat" or "Mimo - Chat" in Column E
-                if isinstance(tipo_entrada, str) and ("Chat" in tipo_entrada or "Mimo - Chat" in tipo_entrada):
-                    if comprador is None or commission_raw is None:
-                        continue
+        next_row = last_filled_row + 1
 
-                    # Clean and parse the commission value
-                    try:
-                        if isinstance(commission_raw, str):
-                            clean_val = commission_raw.replace('R$', '').replace('$', '').strip()
-                            if ',' in clean_val and '.' in clean_val:
-                                clean_val = clean_val.replace('.', '').replace(',', '.')
-                            elif ',' in clean_val:
-                                clean_val = clean_val.replace(',', '.')
-                            commission = float(clean_val)
-                        else:
-                            commission = float(commission_raw)
+        # Insert the sum into column B at the next row
+        ws.cell(row=next_row, column=col_index).value = commission_sum
 
-                        # Group and sum by comprador
-                        if comprador in spenders_dict:
-                            spenders_dict[comprador] += commission
-                        else:
-                            spenders_dict[comprador] = commission
-
-                    except (ValueError, TypeError):
-                        continue
-
-        # 4. Sort the dictionary by total commission descending
-        sorted_spenders = sorted(spenders_dict.items(), key=lambda x: x[1], reverse=True)
-
-        # 5. Create a new Workbook for output
-        new_wb = Workbook()
-        new_sheet = new_wb.active
-        new_sheet.title = "Top Spenders"
-
-        # Add headers
-        new_sheet.append(["Comprador", "Valor gasto"])
-
-        # Make headers bold
-        bold_font = Font(bold=True)
-        new_sheet['A1'].font = bold_font
-        new_sheet['B1'].font = bold_font
-
-        # Add sorted data
-        for comprador, total in sorted_spenders:
-            new_sheet.append([comprador, total])
-
-        # 6. Generate filename with yesterday's date
-        yesterday = datetime.now() - timedelta(days=1)
-        date_str = yesterday.strftime("%d_%m_%Y")
-        output_filename = f"{date_str}_top_spenders_privacy_vip.xlsx"
-        output_path = os.path.join(target_folder, output_filename)
-
-        # Save the new workbook
-        new_wb.save(output_path)
-        print(f"Top spenders file saved to: {output_path}")
-
-        # 7. CLOSE the original workbook before deleting
-        wb.close()
-
-        # 8. Delete the original file
-        os.remove(latest_file)
-        print(f"Original file {os.path.basename(latest_file)} deleted successfully.")
-
-        return True
+        # Save the workbook (preserves all formatting)
+        wb.save(target_excel)
+        print(f"Sum {commission_sum} inserted into {target_excel} at row {next_row}, column B.")
 
     except Exception as e:
-        print(f"Error in generate_top_spenders_from_report: {str(e)}")
+        print(f"Error processing the file: {str(e)}")
+
+    finally:
+        # Delete the downloaded file regardless of success/failure in processing
+        if downloaded_file and os.path.exists(downloaded_file):
+            os.remove(downloaded_file)
+            print(f"Downloaded file deleted: {downloaded_file}")
+
+def click_on_fechar(page):
+    """
+    Attempt to find and click on the 'Fechar' (close) button in the dialog.
+    Handles Shadow DOM and multiple selector strategies. Prioritizes parent button.
+    """
+    try:
+        # List of selectors to try (based on provided details, targeting button or span)
+        selectors = [
+            # Shadow DOM JavaScript selector (most reliable for this page)
+            'document.querySelector("#privacy-web-myprivacy").shadowRoot.querySelector("#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button")',  # Parent button
+            'document.querySelector("#privacy-web-myprivacy").shadowRoot.querySelector("#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button > span > span")',  # Original span
+            'document.querySelector("#privacy-web-myprivacy").shadowRoot.querySelector("div.el-dialog footer button:has(span:text-is(\'Fechar\'))")',  # Text-based on button
+            'document.querySelector("#privacy-web-myprivacy").shadowRoot.querySelector("button.btn-secondary > span > span:contains(\'Fechar\')")',  # Class and text
+            # Direct CSS selectors (if Shadow DOM is not present)
+            "#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button",  # Parent button
+            "#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button > span > span",  # Original span
+            "div.el-dialog footer button:has(span:text-is('Fechar'))",  # Text-based (Playwright supports :has and :text-is)
+            "button.btn-secondary > span > span:contains('Fechar')",  # Class and text
+            # Generalized for dynamic elements
+            "div[class*='el-dialog'] footer button",  # Any button in dialog footer
+            # XPath (may not work with Shadow DOM)
+            "//*[@id='pane-statement']/div/div[1]/div/div[2]/div[3]/div/div/footer/span/button",  # Parent button
+            "//*[@id='pane-statement']/div/div[1]/div/div[2]/div[3]/div/div/footer/span/button/span/span",  # Original span
+            "//div[contains(@class, 'el-dialog')]//footer//button//span[contains(text(), 'Fechar')]/..",  # Parent button of span with "Fechar"
+            "//button[contains(@class, 'btn-secondary') and .//span[contains(text(), 'Fechar')]]"  # Button with class and nested text
+        ]
+
+        # Try each selector
+        for selector in selectors:
+            try:
+                # Handle different selector types
+                if selector.startswith("document.querySelector"):
+                    # JavaScript selector (handles shadow DOM)
+                    clicked = page.evaluate(f'''() => {{
+                        try {{
+                            const element = {selector};
+                            if (element) {{
+                                element.scrollIntoView({{behavior: 'smooth', block: 'center'}});
+                                element.focus();
+                                element.click();
+                                element.dispatchEvent(new Event('click', {{ bubbles: true }}));
+                                return true;
+                            }}
+                        }} catch(e) {{
+                            console.error('Error clicking fechar:', e);
+                        }}
+                        return false;
+                    }}''')
+                    if clicked:
+                        print("✓ Fechar clicked successfully with Shadow DOM selector")
+                        return True
+
+                elif selector.startswith('/'):
+                    # XPath selector
+                    xpath_elements = page.locator(f"xpath={selector}")
+                    if xpath_elements.count() > 0:
+                        try:
+                            # Force visibility
+                            page.evaluate(f'''(selector) => {{
+                                const element = document.evaluate(
+                                    `{selector}`,
+                                    document,
+                                    null,
+                                    XPathResult.FIRST_ORDERED_NODE_TYPE,
+                                    null
+                                ).singleNodeValue;
+                                if (element) {{
+                                    element.style.opacity = '1';
+                                    element.style.visibility = 'visible';
+                                    element.style.display = 'block';
+                                }}
+                            }}''', selector)
+                            # Scroll and click
+                            xpath_elements.first.scroll_into_view_if_needed()
+                            xpath_elements.first.click()
+                            print("✓ Fechar clicked successfully with XPath")
+                            return True
+                        except Exception as e:
+                            print(f"XPath click failed: {str(e)}")
+
+                else:
+                    # CSS selector
+                    css_elements = page.locator(selector)
+                    if css_elements.count() > 0:
+                        try:
+                            # Force visibility
+                            page.evaluate(f'''(selector) => {{
+                                const element = document.querySelector(selector);
+                                if (element) {{
+                                    element.style.opacity = '1';
+                                    element.style.visibility = 'visible';
+                                    element.style.display = 'block';
+                                }}
+                            }}''', selector)
+                            # Scroll and click
+                            css_elements.first.scroll_into_view_if_needed()
+                            css_elements.first.click()
+                            print("✓ Fechar clicked successfully with CSS selector")
+                            return True
+                        except Exception as e:
+                            print(f"CSS selector click failed: {str(e)}")
+
+            except Exception as e:
+                print(f"Failed with fechar selector {selector}: {str(e)}")
+                continue
+
+        # Fallback JavaScript approach with comprehensive search
+        print("Trying JavaScript fallback approach for fechar click...")
+        fallback_clicked = page.evaluate('''() => {
+            // Try Shadow DOM first
+            const shadowHost = document.querySelector("#privacy-web-myprivacy");
+            if (shadowHost && shadowHost.shadowRoot) {
+                // Try multiple selectors inside shadow DOM
+                const shadowSelectors = [
+                    '#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button',  // Parent button
+                    '#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button > span > span',  // Original span
+                    'div.el-dialog footer button:has(span:contains("Fechar"))',  // Text-based
+                    'button.btn-secondary > span > span:contains("Fechar")',  // Class and text
+                    'div[class*="el-dialog"] footer button'  // Generalized dialog footer button
+                ];
+
+                for (const selector of shadowSelectors) {
+                    const shadowElement = shadowHost.shadowRoot.querySelector(selector);
+                    if (shadowElement) {
+                        shadowElement.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        shadowElement.focus();
+                        shadowElement.click();
+                        shadowElement.dispatchEvent(new Event('click', { bubbles: true }));
+                        return true;
+                    }
+                }
+
+                // Additional text-based search in shadow (for non-standard :has/:contains)
+                const buttons = shadowHost.shadowRoot.querySelectorAll('button');
+                for (const button of buttons) {
+                    if (button.textContent?.trim().includes('Fechar')) {
+                        button.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        button.focus();
+                        button.click();
+                        button.dispatchEvent(new Event('click', { bubbles: true }));
+                        return true;
+                    }
+                }
+            }
+
+            // Try regular DOM as fallback
+            const elementSelectors = [
+                '#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button',
+                '#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button > span > span',
+                'div.el-dialog footer button:has(span:contains("Fechar"))',
+                'button.btn-secondary > span > span:contains("Fechar")',
+                'div[class*="el-dialog"] footer button'
+            ];
+
+            for (const selector of elementSelectors) {
+                const elements = document.querySelectorAll(selector);
+                for (const element of elements) {
+                    if (element && element.offsetParent !== null) {
+                        element.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        element.focus();
+                        element.click();
+                        element.dispatchEvent(new Event('click', { bubbles: true }));
+                        return true;
+                    }
+                }
+            }
+
+            // Text-based fallback in regular DOM
+            const buttons = document.querySelectorAll('button');
+            for (const button of buttons) {
+                if (button.textContent?.trim().includes('Fechar')) {
+                    button.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    button.focus();
+                    button.click();
+                    button.dispatchEvent(new Event('click', { bubbles: true }));
+                    return true;
+                }
+            }
+
+            return false;
+        }''')
+
+        if fallback_clicked:
+            print("✓ Fechar clicked successfully using JavaScript fallback!")
+            return True
+
+        print("❌ Could not find or click on fechar using any method.")
         return False
 
+    except Exception as e:
+        print(f"❌ Error in click_on_fechar: {str(e)}")
+        return False
+
+def click_on_menu(page):
+    """
+    Attempt to find and click the 'Menu' button (avatar) using multiple approaches.
+    Prioritizes the specific avatar button identified and handles Shadow DOM if present.
+    """
+    print("Attempting to click the 'Menu' button...")
+    try:
+        # Define specific selectors for the avatar button you identified
+        # These are for the parent button or the image itself, which Playwright can often click
+        avatar_selectors = [
+            # 1. Direct CSS selector for the parent button of the avatar image
+            "#privacy-header--avatar-button",
+            # 2. CSS selector for the image itself (Playwright can often click images)
+            "#privacy-header--avatar-button > img",
+            # 3. XPath for the parent button
+            "//*[@id='privacy-header--avatar-button']",
+            # 4. XPath for the image itself
+            "//*[@id='privacy-header--avatar-button']/img",
+            # 5. More generic CSS for the image based on attributes
+            "img.privacy-header--avatar-img[src*='media/avatar/']",
+            # 6. More generic XPath for the image based on attributes
+            "//img[contains(@src, 'media/avatar/') and @class='privacy-header--avatar-img']"
+        ]
+
+        # Define selectors for a potential Shadow DOM menu button, if it's a separate element
+        # These are for the 'div > nav > div:nth-child(5)' inside a shadow root
+        shadow_dom_menu_selectors = [
+            "div > nav > div:nth-child(5)", # This is the internal selector for the shadow root
+            "nav.menu div.menu__item:nth-child(5)",
+            "nav.menu div.menu__item:last-child",
+            "div.menu__item:has(span:text-is('Menu'))",
+        ]
+
+        # --- Phase 1: Try clicking the identified avatar button directly ---
+        for selector in avatar_selectors:
+            try:
+                print(f"Trying avatar selector: {selector}")
+                # Playwright's locator handles CSS and XPath automatically if prefixed
+                locator = page.locator(selector)
+                if locator.count() > 0:
+                    # Use Playwright's built-in waiting and clicking capabilities
+                    # force=True can help if Playwright thinks it's not interactable,
+                    # but it's often better to ensure proper waits.
+                    locator.first.scroll_into_view_if_needed()
+                    locator.first.click(timeout=5000) # Add a timeout for the click operation
+                    print(f"Successfully clicked avatar button with selector: {selector}")
+                    return True
+            except Exception as e:
+                print(f"Failed to click avatar button with selector '{selector}': {str(e)}")
+                # Continue to the next selector
+
+        # --- Phase 2: Handle potential Shadow DOM menu if the avatar click didn't work ---
+        # This assumes '#privacy-web-floatmenu' is the shadow host for a *different* menu
+        print("Avatar button not found or clickable. Checking for Shadow DOM menu...")
+        float_menu_host = page.locator("#privacy-web-floatmenu")
+        if float_menu_host.count() > 0:
+            print("Found potential shadow host: #privacy-web-floatmenu")
+            # Execute JavaScript to access the shadowRoot and find the element within it
+            # This is the most robust way to interact with Shadow DOM in Playwright/Selenium
+            for internal_selector in shadow_dom_menu_selectors:
+                try:
+                    print(f"Trying Shadow DOM internal selector: {internal_selector}")
+                    button_clicked = page.evaluate(f'''(host, selector) => {{
+                        const shadowHost = host;
+                        if (shadowHost && shadowHost.shadowRoot) {{
+                            const button = shadowHost.shadowRoot.querySelector(selector);
+                            if (button) {{
+                                button.scrollIntoView({{behavior: 'smooth', block: 'center'}});
+                                button.click();
+                                return true;
+                            }}
+                        }}
+                        return false;
+                    }}''', float_menu_host.element_handle(), internal_selector) # Pass element_handle for JS context
+
+                    if button_clicked:
+                        print(f"Successfully clicked Shadow DOM menu button with internal selector: {internal_selector}")
+                        return True
+                except Exception as e:
+                    print(f"Failed to click Shadow DOM menu button with internal selector '{internal_selector}': {str(e)}")
+                    # Continue to the next internal selector
+
+        # --- Phase 3: Fallback for other generic "Menu" elements (less specific) ---
+        print("Shadow DOM menu not found or clickable. Trying generic text/image based fallbacks...")
+        fallback_clicked = page.evaluate('''() => {
+            // Try finding by img src/class (if not already covered by avatar_selectors)
+            const avatarImgs = document.querySelectorAll('img.el-image__inner[src*="media/avatar/"]');
+            for (const img of avatarImgs) {
+                const parentDiv = img.closest('div.menu__item') || img.parentElement; // Get parent div or immediate parent
+                if (parentDiv) {
+                    parentDiv.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    parentDiv.click();
+                    return true;
+                }
+            }
+
+            // Try finding by text content "Menu"
+            const menuItems = document.querySelectorAll('div.menu__item, span.text-menu');
+            for (const item of menuItems) {
+                if (item.textContent.trim() === 'Menu') {
+                    item.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    item.click();
+                    return true;
+                }
+            }
+            return false;
+        }''')
+
+        if fallback_clicked:
+            print("Successfully clicked Menu button using generic JavaScript fallback.")
+            return True
+
+        print("Could not find or click Menu button using any method.")
+        return False
+
+    except Exception as e:
+        print(f"An unexpected error occurred in click_on_menu: {str(e)}")
+        return False
+
+def click_on_sair(page):
+    """
+    Attempt to find and click on the 'Sair' (logout) element.
+    Handles Shadow DOM and multiple selector strategies.
+    """
+    try:
+        # List of selectors to try (based on provided details)
+        selectors = [
+            # Shadow DOM JavaScript selector (most reliable for this page)
+            'document.querySelector("#privacy-web-floatmenu").shadowRoot.querySelector("#el-id-1595-11 > div > div > div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div.font-medium.text-sm.option-header.d-flex.align-items-center.gap-2.mb-2 > span")',
+            'document.querySelector("#privacy-web-floatmenu").shadowRoot.querySelector("span:contains(\'Sair\')")',  # Text-based
+            'document.querySelector("#privacy-web-floatmenu").shadowRoot.querySelector("div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div > span")',
+            # Direct CSS selectors (if Shadow DOM is not present)
+            "#el-id-1595-11 > div > div > div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div.font-medium.text-sm.option-header.d-flex.align-items-center.gap-2.mb-2 > span",
+            "span:contains('Sair')",  # Text-based (may need library support or JS for :contains)
+            "div.font-medium.text-sm.option-header.d-flex.align-items-center.gap-2.mb-2 > span",
+            # Generalized for dynamic IDs and classes
+            "[id^='el-id-'] > div > div > div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div > span",
+            # XPath (may not work with Shadow DOM)
+            "//*[@id='el-id-1595-11']/div/div/div[1]/div[2]/div/section/div[2]/div[4]/div[1]/span",
+            "//span[contains(text(), 'Sair')]",
+            "//div[contains(@class, 'submenu__options')]//span[contains(text(), 'Sair')]"
+        ]
+
+        # Try each selector
+        for selector in selectors:
+            try:
+                # Handle different selector types
+                if selector.startswith("document.querySelector"):
+                    # JavaScript selector (handles shadow DOM)
+                    clicked = page.evaluate(f'''() => {{
+                        try {{
+                            const element = {selector};
+                            if (element) {{
+                                element.scrollIntoView({{behavior: 'smooth', block: 'center'}});
+                                element.focus();
+                                element.click();
+                                element.dispatchEvent(new Event('click', {{ bubbles: true }}));
+                                return true;
+                            }}
+                        }} catch(e) {{
+                            console.error('Error clicking sair:', e);
+                        }}
+                        return false;
+                    }}''')
+                    if clicked:
+                        print("✓ Sair clicked successfully with Shadow DOM selector")
+                        return True
+
+                elif selector.startswith('/'):
+                    # XPath selector
+                    xpath_elements = page.locator(f"xpath={selector}")
+                    if xpath_elements.count() > 0:
+                        try:
+                            # Force visibility
+                            page.evaluate(f'''(selector) => {{
+                                const element = document.evaluate(
+                                    `{selector}`,
+                                    document,
+                                    null,
+                                    XPathResult.FIRST_ORDERED_NODE_TYPE,
+                                    null
+                                ).singleNodeValue;
+                                if (element) {{
+                                    element.style.opacity = '1';
+                                    element.style.visibility = 'visible';
+                                    element.style.display = 'block';
+                                }}
+                            }}''', selector)
+                            # Scroll and click
+                            xpath_elements.first.scroll_into_view_if_needed()
+                            xpath_elements.first.click()
+                            print("✓ Sair clicked successfully with XPath")
+                            return True
+                        except Exception as e:
+                            print(f"XPath click failed: {str(e)}")
+
+                else:
+                    # CSS selector
+                    css_elements = page.locator(selector)
+                    if css_elements.count() > 0:
+                        try:
+                            # Force visibility
+                            page.evaluate(f'''(selector) => {{
+                                const element = document.querySelector(selector);
+                                if (element) {{
+                                    element.style.opacity = '1';
+                                    element.style.visibility = 'visible';
+                                    element.style.display = 'block';
+                                }}
+                            }}''', selector)
+                            # Scroll and click
+                            css_elements.first.scroll_into_view_if_needed()
+                            css_elements.first.click()
+                            print("✓ Sair clicked successfully with CSS selector")
+                            return True
+                        except Exception as e:
+                            print(f"CSS selector click failed: {str(e)}")
+
+            except Exception as e:
+                print(f"Failed with sair selector {selector}: {str(e)}")
+                continue
+
+        # Fallback JavaScript approach with comprehensive search
+        print("Trying JavaScript fallback approach for sair click...")
+        fallback_clicked = page.evaluate('''() => {
+            // Try Shadow DOM first
+            const shadowHost = document.querySelector("#privacy-web-floatmenu");
+            if (shadowHost && shadowHost.shadowRoot) {
+                // Try multiple selectors inside shadow DOM
+                const shadowSelectors = [
+                    '#el-id-1595-11 > div > div > div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div.font-medium.text-sm.option-header.d-flex.align-items-center.gap-2.mb-2 > span',
+                    'span:contains("Sair")',
+                    'div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div > span',
+                    '[id^="el-id-"] > div > div > div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div > span'
+                ];
+
+                for (const selector of shadowSelectors) {
+                    const shadowElement = shadowHost.shadowRoot.querySelector(selector);
+                    if (shadowElement) {
+                        shadowElement.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        shadowElement.focus();
+                        shadowElement.click();
+                        shadowElement.dispatchEvent(new Event('click', { bubbles: true }));
+                        return true;
+                    }
+                }
+            }
+
+            // Try regular DOM as fallback
+            const elementSelectors = [
+                '#el-id-1595-11 > div > div > div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div.font-medium.text-sm.option-header.d-flex.align-items-center.gap-2.mb-2 > span',
+                'span:contains("Sair")',
+                'div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div > span',
+                '[id^="el-id-"] > div > div > div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div > span'
+            ];
+
+            for (const selector of elementSelectors) {
+                const elements = document.querySelectorAll(selector);
+                for (const element of elements) {
+                    if (element && element.offsetParent !== null) {
+                        element.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        element.focus();
+                        element.click();
+                        element.dispatchEvent(new Event('click', { bubbles: true }));
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }''')
+
+        if fallback_clicked:
+            print("✓ Sair clicked successfully using JavaScript fallback!")
+            return True
+
+        print("❌ Could not find or click on sair using any method.")
+        return False
+
+    except Exception as e:
+        print(f"❌ Error in click_on_sair: {str(e)}")
+        return False
 
 def main():
     pw = None
     context = None
     page = None
     browser_process = None
+
+    # ADIÇÃO: Definir user_data aqui para acessá-lo no finally (para limpeza)
+    user_data = os.path.join(os.environ['LOCALAPPDATA'], r"Google\Chrome\User Data\Automation")
 
     # 2. Launch Browser via the Native Hook method
     try:
@@ -1052,8 +1514,7 @@ def main():
                     time.sleep(2)
 
         if not username_inserted:
-            print("❌ Failed to insert username after all attempts.")
-            page.screenshot(path="debug_username_failed.png")
+            print("❌ Maybe you are already logged in!")
 
         time.sleep(2)
         # endregion
@@ -1075,8 +1536,7 @@ def main():
                     time.sleep(2)
 
         if not password_inserted:
-            print("❌ Failed to insert password after all attempts.")
-            page.screenshot(path="debug_password_failed.png")
+            print("❌ Maybe you are already logged in!")
 
         time.sleep(2)
         # endregion
@@ -1100,7 +1560,7 @@ def main():
         # Wait for login to complete
         if login_successful:
             print("\nWaiting for login to complete...")
-            page.wait_for_timeout(5000)
+            page.wait_for_timeout(10000)
             print(f"Current URL: {page.url}")
             print("✓ Login process completed!")
         # endregion
@@ -1125,10 +1585,6 @@ def main():
                 print(f"✗ Attempt {attempt + 1} failed. Tab may not be visible yet.")
                 if attempt < max_retries - 1:
                     page.wait_for_timeout(2000)
-
-        if not extrato_clicked:
-            print("⚠ Warning: Could not click Extrato tab after all attempts.")
-        # endregion
 
         if not extrato_clicked:
             print("⚠ Warning: Could not click Extrato tab after all attempts.")
@@ -1169,52 +1625,132 @@ def main():
         # region Try to click the Gerar Relatório button
         if click_on_gerar_relatorio_button(page):
             print("Dialog 'Gerar Relatório' opened.")
-            time.sleep(2)  # Wait for dialog animation
+            time.sleep(3)  # Wait for dialog animation
         # endregion
 
-        # region Confirm and Download Report
-        target_folder = r"G:\Meu Drive\Sexting - Histórico"
-        os.makedirs(target_folder, exist_ok=True)
+        confirm_download_and_rebuild_report(page, click_on_confirmar_button)
+
+        # # region Confirm and Download Report
+        # target_folder = r"G:\Meu Drive\Financeiro"
+        # os.makedirs(target_folder, exist_ok=True)
+        # max_retries = 3
+        # download_success = False
+        # for attempt in range(max_retries):
+        #     try:
+        #         print(f"Attempt {attempt + 1}: Waiting for download event...")
+        #         # 1. Start the listener
+        #         with page.expect_download(timeout=60000) as download_info:
+        #             # 2. Trigger the click ONLY HERE
+        #             if click_on_confirmar_button(page):
+        #                 print("Confirm button clicked. Processing file...")
+        #                 # 3. Capture and save the file
+        #                 download = download_info.value
+        #                 final_destination = os.path.join(target_folder, download.suggested_filename)
+        #                 download.save_as(final_destination)
+        #                 print(f"File successfully saved to: {final_destination}")
+        #                 download_success = True
+        #                 break
+        #             else:
+        #                 print(f"Click logic could not find the button on attempt {attempt + 1}")
+        #     except Exception as e:
+        #         print(f"Attempt {attempt + 1} failed: {str(e)}")
+        #         if attempt < max_retries - 1:
+        #             time.sleep(2)
+        # if not download_success:
+        #     print("Failed to capture the download after all retries.")
+        # # endregion
+
+        page.wait_for_timeout(4000)
+
+        # region Try to click on fechar with retries
+        print("\nAttempting to click on fechar...")
         max_retries = 3
-        download_success = False
+        fechar_clicked = False
+
         for attempt in range(max_retries):
-            try:
-                print(f"Attempt {attempt + 1}: Waiting for download event...")
-                # 1. Start the listener
-                with page.expect_download(timeout=60000) as download_info:
-                    # 2. Trigger the click ONLY HERE
-                    if click_on_confirmar_button(page):
-                        print("Confirm button clicked. Processing file...")
-                        # 3. Capture and save the file
-                        download = download_info.value
-                        final_destination = os.path.join(target_folder, download.suggested_filename)
-                        download.save_as(final_destination)
-                        print(f"File successfully saved to: {final_destination}")
-                        download_success = True
-                        break
-                    else:
-                        print(f"Click logic could not find the button on attempt {attempt + 1}")
-            except Exception as e:
-                print(f"Attempt {attempt + 1} failed: {str(e)}")
+            print(f"Fechar click attempt {attempt + 1}/{max_retries}")
+            if click_on_fechar(page):
+                fechar_clicked = True
+                break
+            else:
+                print(f"✗ Fechar click attempt {attempt + 1} failed.")
                 if attempt < max_retries - 1:
+                    print("Waiting before next attempt...")
                     time.sleep(2)
-        if not download_success:
-            print("Failed to capture the download after all retries.")
+
+        if not fechar_clicked:
+            print("❌ Failed to click on fechar after all attempts.")
+
+        page.wait_for_timeout(3000)
         # endregion
 
-        # After successful download, generate top spenders
-        if download_success:
-            generate_top_spenders_from_report()
+        page.evaluate("window.scrollTo(0, 0);")
 
-        print("\nTask completed successfully. Closing automation...")
+        # region Try to click the Menu button with retries
+        max_retries = 3
+        print(f"Starting attempts to click the Menu button (avatar). Max retries: {max_retries}")
+        for attempt in range(max_retries):
+            print(f"\n--- Attempt {attempt + 1} of {max_retries} ---")
+            if click_on_menu(page):
+                print("Successfully clicked Menu button after one or more attempts!")
+                break # Exit the loop if successful
+            else:
+                print(f"Attempt {attempt + 1} failed to click the Menu button.")
+                if attempt < max_retries - 1:
+                    print("Waiting 1 second before the next attempt...")
+                    page.wait_for_timeout(1000)  # Wait 1 second before retrying
+                else:
+                    print("This was the last attempt.")
+        else:
+            # This 'else' block executes if the loop completes without a 'break'
+            print("Failed to click Menu button after all attempts.")
+
+        print("Waiting for 3 seconds after menu interaction (or failure)...")
+        page.wait_for_timeout(3000)
+        # endregion
+
+        # region Try to click on sair with retries
+        print("\nAttempting to click on sair...")
+        max_retries = 3
+        sair_clicked = False
+
+        for attempt in range(max_retries):
+            print(f"Sair click attempt {attempt + 1}/{max_retries}")
+            if click_on_sair(page):
+                sair_clicked = True
+                break
+            else:
+                print(f"✗ Sair click attempt {attempt + 1} failed.")
+                if attempt < max_retries - 1:
+                    print("Waiting before next attempt...")
+                    time.sleep(2)
+
+        if not sair_clicked:
+            print("❌ Failed to click on sair after all attempts.")
+
+        page.wait_for_timeout(5000)
+        # endregion
 
     except Exception as e:
         print(f"An error occurred: {e}")
 
     finally:
-        # Ensure browser cleanup
-        cleanup(pw, context, browser_process)
+        # Cleanup: Close browser and resources (adjust based on your Playwright setup)
+        try:
+            if 'page' in locals() and page:
+                page.close()
+            if 'context' in locals() and context:
+                context.close()
+            if 'browser' in locals() and page:
+                page.close()
+            if 'browser' in locals() and browser_process:
+                browser_process.close()
+            print("Browser closed successfully.")
+        except Exception as close_err:
+            print(f"Error closing browser: {close_err}")
 
+        # Exit the script (0 for success, as per search recommendations)
+        sys.exit(0)    
 
 if __name__ == "__main__":
     main()

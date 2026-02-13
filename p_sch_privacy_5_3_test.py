@@ -5,6 +5,7 @@ import sys
 import time
 from datetime import timedelta, date
 from pathlib import Path
+import warnings
 
 # Third-party imports
 import openpyxl
@@ -15,81 +16,41 @@ from playwright.sync_api import sync_playwright
 # Local imports
 sys.path.append(str(Path(__file__).resolve().parent.parent))  # Adjust path to include the parent directory
 
-# region Script to help build the executable with PyInstaller
+# Third-party imports
+from playwright.sync_api import sync_playwright
+from openpyxl.styles import Font
+
+warnings.filterwarnings("ignore", category=UserWarning, module="playwright_stealth")
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+# region playwright-stealth (fork mais atualizado recomendado em 2025/2026)
 try:
-    # Para o executável PyInstaller
-    sys.path.append(os.path.join(sys._MEIPASS, "repository"))
-except Exception:
-    # Para desenvolvimento
-    sys.path.append(str(Path(__file__).resolve().parent.parent / "repository"))
+    from playwright_stealth import stealth_sync
+except ImportError:
+    print("playwright-stealth não encontrado.")
+    print("Instale com: pip install git+https://github.com/AtuboDad/playwright_stealth.git")
+    sys.exit(1)
 # endregion
 
-def captions_operation():
-    """
-    Loads captions from Excel, filters out used ones based on the history file,
-    and returns a randomized list. If all are used, it resets the history.
-    """
-    # Updated File paths
-    excel_path = r"G:\Meu Drive\Privacy_free\privacy_captions.xlsx"
-    history_path = r"G:\Meu Drive\Privacy_free\privacy_free_used_captions.txt"
-    
-    available_captions = []
-    used_captions = []
-
-    # 1. Load used captions from the history file
-    if os.path.exists(history_path):
-        with open(history_path, "r", encoding="utf-8") as f:
-            used_captions = [line.strip() for line in f.readlines() if line.strip()]
-
-    try:
-        # 2. Load all captions from the Excel file
-        workbook = openpyxl.load_workbook(excel_path)
-        sheet = workbook.active
-        all_excel_captions = []
-        
-        for row in sheet.iter_rows(values_only=True):
-            for cell in row:
-                if cell is not None:
-                    clean_caption = str(cell).strip()
-                    if clean_caption:
-                        all_excel_captions.append(clean_caption)
-
-        # 3. Filter: Keep only captions NOT found in the history file
-        available_captions = [c for c in all_excel_captions if c not in used_captions]
-
-        # 4. Logic: Reset if empty
-        if not available_captions:
-            print("All captions used. Resetting history file...")
-            with open(history_path, "w", encoding="utf-8") as f:
-                f.truncate(0)
-                f.flush()
-                os.fsync(f.fileno())
-            available_captions = all_excel_captions
-
-        # 5. Shuffle
-        random.shuffle(available_captions)
-
-    except FileNotFoundError:
-        print(f"Error: Excel file not found at {excel_path}")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-
-    return available_captions
-
-def mark_caption_as_used(caption):
-    """
-    Appends the caption to the history file and forces an immediate save to disk.
-    """
-    history_path = r"G:\Meu Drive\Privacy_free\privacy_free_used_captions.txt"
-    
-    os.makedirs(os.path.dirname(history_path), exist_ok=True)
-    
-    # Using 'a' (append) mode to add the new caption at the end
-    with open(history_path, "a", encoding="utf-8") as f:
-        f.write(caption + "\n")
-        # Force the OS to write the data to the physical disk immediately
-        f.flush()
-        os.fsync(f.fileno())
+def cleanup(pw=None, context=None, browser_process=None):
+    """Cleanup resources properly"""
+    if context:
+        try:
+            context.close()
+        except Exception as e:
+            print(f"Error closing context: {e}")
+    if pw:
+        try:
+            pw.stop()
+        except Exception as e:
+            print(f"Error stopping Playwright: {e}")
+    if browser_process:
+        try:
+            browser_process.terminate()
+            browser_process.wait(timeout=5)
+        except Exception as e:
+            print(f"Error terminating browser process: {e}")
+    print("Recursos liberados")
 
 def open_chrome_in_privacy_login_page():
     # 1. Paths
@@ -139,22 +100,27 @@ def open_chrome_in_privacy_login_page():
 
 def insert_username(page):
     """
-    Attempt to find the username input field and insert 'hacksimone29@gmail.com'.
+    Attempt to find the username input field and insert 'milfelectra@gmail.com'.
     Handles Shadow DOM and multiple selector strategies.
     """
     try:
-        # List of selectors to try
+        # List of selectors to try (updated with new ID and paths)
         selectors = [
-            # Shadow DOM JavaScript selector (most reliable for this page)
-            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input#floating-input-i4nch77")',
+            # Shadow DOM JavaScript selector (most reliable for this page, updated with new ID)
+            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("#floating-input-jnygnm9")',
             'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input[type=\'email\']")',
+            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input.el-input__inner[type=\'email\']")',
             'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("div > div > div:nth-child(1) > div > form > div:nth-child(1) input")',
-            # Direct CSS selectors (if Shadow DOM is not present)
-            "input#floating-input-i4nch77",
+            # Direct CSS selectors (if Shadow DOM is not present, updated with new ID)
+            "#floating-input-jnygnm9",
+            "input#floating-input-jnygnm9",
             "input.el-input__inner[type='email']",
             "input[type='email'][autocomplete='off']",
             "input[placeholder=' '][type='email']",
-            # XPath (may not work with Shadow DOM)
+            # Generalized for dynamic IDs
+            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input[id^=\'floating-input-\']")',
+            # XPath (may not work with Shadow DOM, updated with new ID)
+            "//*[@id='floating-input-jnygnm9']",
             "//*[@id='privacy-web-auth']//div/div/div[1]/div/form/div[1]//input",
             "//input[@type='email' and contains(@id, 'floating-input')]",
             "//input[@class='el-input__inner' and @type='email']"
@@ -243,14 +209,16 @@ def insert_username(page):
                 print(f"Failed with username input selector {selector}: {str(e)}")
                 continue
 
-        # Fallback JavaScript approach with comprehensive search
+        # Fallback JavaScript approach with comprehensive search (updated with new patterns)
         print("Trying JavaScript fallback approach for username input...")
         fallback_inserted = page.evaluate('''(text) => {
             // Try Shadow DOM first
             const shadowHost = document.querySelector("#privacy-web-auth");
             if (shadowHost && shadowHost.shadowRoot) {
-                // Try multiple selectors inside shadow DOM
+                // Try multiple selectors inside shadow DOM (updated with new ID)
                 const shadowSelectors = [
+                    '#floating-input-jnygnm9',
+                    'input[id^="floating-input-"]',
                     'input[type="email"]',
                     'input.el-input__inner[type="email"]',
                     'input[autocomplete="off"][type="email"]',
@@ -274,6 +242,8 @@ def insert_username(page):
 
             // Try regular DOM as fallback
             const inputSelectors = [
+                '#floating-input-jnygnm9',
+                'input[id^="floating-input-"]',
                 'input[type="email"]',
                 'input.el-input__inner[type="email"]',
                 'input[autocomplete="off"][type="email"]',
@@ -316,20 +286,25 @@ def insert_password(page):
     Handles Shadow DOM and multiple selector strategies.
     """
     try:
-        # List of selectors to try
+        # List of selectors to try (updated with new ID and paths)
         selectors = [
-            # Shadow DOM JavaScript selectors (most reliable for this page)
-            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input#floating-input-ue2x7hk")',
+            # Shadow DOM JavaScript selectors (most reliable for this page, updated with new ID)
+            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("#floating-input-sekcpj1")',
             'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input[type=\'password\']")',
+            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input.el-input__inner[type=\'password\']")',
             'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("div > div > div:nth-child(1) > div > form > div.el-form-item.is-required.asterisk-left input")',
             'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("div > div > div:nth-child(1) > div > form > div:nth-child(2) input")',
-            # Direct CSS selectors (if Shadow DOM is not present)
-            "input#floating-input-ue2x7hk",
+            # Direct CSS selectors (if Shadow DOM is not present, updated with new ID)
+            "#floating-input-sekcpj1",
+            "input#floating-input-sekcpj1",
             "input.el-input__inner[type='password']",
             "input[type='password'][autocomplete='off']",
             "input[placeholder=' '][type='password']",
             "div.el-form-item.is-required input[type='password']",
-            # XPath (may not work with Shadow DOM)
+            # Generalized for dynamic IDs
+            'document.querySelector("#privacy-web-auth").shadowRoot.querySelector("input[id^=\'floating-input-\']")',
+            # XPath (may not work with Shadow DOM, updated with new ID)
+            "//*[@id='floating-input-sekcpj1']",
             "//*[@id='privacy-web-auth']//div/div/div[1]/div/form/div[2]//input",
             "//input[@type='password' and contains(@id, 'floating-input')]",
             "//input[@class='el-input__inner' and @type='password']",
@@ -419,14 +394,16 @@ def insert_password(page):
                 print(f"Failed with password input selector {selector}: {str(e)}")
                 continue
 
-        # Fallback JavaScript approach with comprehensive search
+        # Fallback JavaScript approach with comprehensive search (updated with new patterns)
         print("Trying JavaScript fallback approach for password input...")
         fallback_inserted = page.evaluate('''(text) => {
             // Try Shadow DOM first
             const shadowHost = document.querySelector("#privacy-web-auth");
             if (shadowHost && shadowHost.shadowRoot) {
-                // Try multiple selectors inside shadow DOM
+                // Try multiple selectors inside shadow DOM (updated with new ID)
                 const shadowSelectors = [
+                    '#floating-input-sekcpj1',
+                    'input[id^="floating-input-"]',
                     'input[type="password"]',
                     'input.el-input__inner[type="password"]',
                     'input[autocomplete="off"][type="password"]',
@@ -452,6 +429,8 @@ def insert_password(page):
 
             // Try regular DOM as fallback
             const inputSelectors = [
+                '#floating-input-sekcpj1',
+                'input[id^="floating-input-"]',
                 'input[type="password"]',
                 'input.el-input__inner[type="password"]',
                 'input[autocomplete="off"][type="password"]',
@@ -555,95 +534,114 @@ def click_on_entrar_button(page):
         print(f"Error in click_on_entrar_button: {e}")
         return False
 
-def cleanup_playwright():
-    """Safely close browser and stop Playwright when done."""
-    global playwright_instance, browser_context
+# # region Script to help build the executable with PyInstaller
+# try:
+#     # Para o executável PyInstaller
+#     sys.path.append(os.path.join(sys._MEIPASS, "repository"))
+# except Exception:
+#     # Para desenvolvimento
+#     sys.path.append(str(Path(__file__).resolve().parent.parent / "repository"))
+# # endregion
+
+def captions_operation():
+    """
+    Loads captions from Excel, filters out used ones based on the history file,
+    and returns a randomized list. If all are used, it resets the history.
+    """
+    # Updated File paths
+    excel_path = r"G:\Meu Drive\Privacy_free\privacy_captions.xlsx"
+    history_path = r"G:\Meu Drive\Privacy_free\privacy_free_used_captions.txt"
     
-    # Close browser context
-    try:
-        if browser_context is not None:
-            browser_context.close()
-            print("Browser context closed.")
-    except Exception as e:
-        print(f"Error closing browser context: {e}")
-    
-    # Stop Playwright instance
-    try:
-        if playwright_instance is not None:
-            playwright_instance.stop()
-            print("Playwright stopped.")
-    except Exception as e:
-        print(f"Error stopping Playwright: {e}")
+    available_captions = []
+    used_captions = []
 
-def keep_browser_alive():
-    """
-    Mantém o browser ativo indefinidamente.
-    Chame esta função após open_chrome_with_profile() se quiser manter o browser aberto.
-    """
-    try:
-        print("Mantendo browser ativo... (Pressione Ctrl+C para encerrar)")
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("\nEncerrando browser...")
-        cleanup_playwright()
-
-def open_chrome_native():
-    """
-    Alternative: Opens native Chrome without Playwright.
-    Uses the Chrome executable directly with the specified profile.
-    """
-    profile_path = r"C:\Users\danie\AppData\Local\Google\Chrome\User Data"
-    chrome_exe = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-    target_url = "https://privacy.com.br/board"
-
-    # Validate file and directory existence
-    if not os.path.exists(chrome_exe):
-        raise FileNotFoundError(f"Chrome not found at: {chrome_exe}")
-    
-    if not os.path.exists(profile_path):
-        raise FileNotFoundError(f"Profile directory not found: {profile_path}")
-
-    # Build command arguments
-    cmd = [
-        chrome_exe,
-        f"--user-data-dir={profile_path}",
-        "--profile-directory=Default",
-        "--no-first-run",
-        "--no-default-browser-check",
-        "--disable-background-timer-throttling",
-        "--disable-backgrounding-occluded-windows",
-        "--disable-renderer-backgrounding",
-        "--remote-debugging-port=0",
-        target_url
-    ]
+    # 1. Load used captions from the history file
+    if os.path.exists(history_path):
+        with open(history_path, "r", encoding="utf-8") as f:
+            used_captions = [line.strip() for line in f.readlines() if line.strip()]
 
     try:
-        print(f"Opening Native Chrome...\nExe: {chrome_exe}\nProfile: {profile_path}")
-
-        # Start the Chrome process detached from the script
-        process = subprocess.Popen(
-            cmd, 
-            stdout=subprocess.DEVNULL, 
-            stderr=subprocess.DEVNULL
-        )
-
-        print(f"Chrome started with PID: {process.pid}")
+        # 2. Load all captions from the Excel file
+        workbook = openpyxl.load_workbook(excel_path)
+        sheet = workbook.active
+        all_excel_captions = []
         
-        # Wait for initialization
-        time.sleep(3)
+        for row in sheet.iter_rows(values_only=True):
+            for cell in row:
+                if cell is not None:
+                    clean_caption = str(cell).strip()
+                    if clean_caption:
+                        all_excel_captions.append(clean_caption)
 
-        # Check if the process is still alive
-        if process.poll() is None:
-            print("Chrome is running successfully.")
-            return True
-        else:
-            print("Chrome closed unexpectedly.")
-            return False
-            
+        # 3. Filter: Keep only captions NOT found in the history file
+        available_captions = [c for c in all_excel_captions if c not in used_captions]
+
+        # 4. Logic: Reset if empty
+        if not available_captions:
+            print("All captions used. Resetting history file...")
+            with open(history_path, "w", encoding="utf-8") as f:
+                f.truncate(0)
+                f.flush()
+                os.fsync(f.fileno())
+            available_captions = all_excel_captions
+
+        # 5. Shuffle
+        random.shuffle(available_captions)
+
+    except FileNotFoundError:
+        print(f"Error: Excel file not found at {excel_path}")
     except Exception as e:
-        print(f"Error opening native Chrome: {e}")
-        return False
+        print(f"An unexpected error occurred: {e}")
+
+    return available_captions
+
+def mark_caption_as_used(caption):
+    """
+    Appends the caption to the history file and forces an immediate save to disk.
+    """
+    history_path = r"G:\Meu Drive\Privacy_free\privacy_free_used_captions.txt"
+    
+    os.makedirs(os.path.dirname(history_path), exist_ok=True)
+    
+    # Using 'a' (append) mode to add the new caption at the end
+    with open(history_path, "a", encoding="utf-8") as f:
+        f.write(caption + "\n")
+        # Force the OS to write the data to the physical disk immediately
+        f.flush()
+        os.fsync(f.fileno())
+
+def cleanup(pw=None, context=None, browser_process=None):
+    """Cleanup resources properly"""
+    if context:
+        try:
+            context.close()
+        except Exception as e:
+            print(f"Error closing context: {e}")
+    if pw:
+        try:
+            pw.stop()
+        except Exception as e:
+            print(f"Error stopping Playwright: {e}")
+    if browser_process:
+        try:
+            browser_process.terminate()
+            browser_process.wait(timeout=5)
+        except Exception as e:
+            print(f"Error terminating browser process: {e}")
+    print("Recursos liberados")
+
+# def keep_browser_alive():
+#     """
+#     Mantém o browser ativo indefinidamente.
+#     Chame esta função após open_chrome_with_profile() se quiser manter o browser aberto.
+#     """
+#     try:
+#         print("Mantendo browser ativo... (Pressione Ctrl+C para encerrar)")
+#         while True:
+#             time.sleep(1)
+#     except KeyboardInterrupt:
+#         print("\nEncerrando browser...")
+#         cleanup_playwright()
 
 def click_On_Pular_Tutorial_btn(page):
     """
@@ -3877,31 +3875,297 @@ def safe_click(page, selector, options=None):
             time.sleep(1)  # Short delay before retry
     return False
 
-def cleanup(pw=None, context=None, browser_process=None):
-    """Cleanup resources properly"""
-    if context:
-        try:
-            context.close()
-        except Exception as e:
-            print(f"Error closing context: {e}")
-    if pw:
-        try:
-            pw.stop()
-        except Exception as e:
-            print(f"Error stopping Playwright: {e}")
-    if browser_process:
-        try:
-            browser_process.terminate()
-            browser_process.wait(timeout=5)
-        except Exception as e:
-            print(f"Error terminating browser process: {e}")
-    print("Recursos liberados")
+def click_on_menu(page):
+    """
+    Attempt to find and click the 'Menu' button (avatar) using multiple approaches.
+    Prioritizes the specific avatar button identified and handles Shadow DOM if present.
+    """
+    print("Attempting to click the 'Menu' button...")
+    try:
+        # Define specific selectors for the avatar button you identified
+        # These are for the parent button or the image itself, which Playwright can often click
+        avatar_selectors = [
+            # 1. Direct CSS selector for the parent button of the avatar image
+            "#privacy-header--avatar-button",
+            # 2. CSS selector for the image itself (Playwright can often click images)
+            "#privacy-header--avatar-button > img",
+            # 3. XPath for the parent button
+            "//*[@id='privacy-header--avatar-button']",
+            # 4. XPath for the image itself
+            "//*[@id='privacy-header--avatar-button']/img",
+            # 5. More generic CSS for the image based on attributes
+            "img.privacy-header--avatar-img[src*='media/avatar/']",
+            # 6. More generic XPath for the image based on attributes
+            "//img[contains(@src, 'media/avatar/') and @class='privacy-header--avatar-img']"
+        ]
+
+        # Define selectors for a potential Shadow DOM menu button, if it's a separate element
+        # These are for the 'div > nav > div:nth-child(5)' inside a shadow root
+        shadow_dom_menu_selectors = [
+            "div > nav > div:nth-child(5)", # This is the internal selector for the shadow root
+            "nav.menu div.menu__item:nth-child(5)",
+            "nav.menu div.menu__item:last-child",
+            "div.menu__item:has(span:text-is('Menu'))",
+        ]
+
+        # --- Phase 1: Try clicking the identified avatar button directly ---
+        for selector in avatar_selectors:
+            try:
+                print(f"Trying avatar selector: {selector}")
+                # Playwright's locator handles CSS and XPath automatically if prefixed
+                locator = page.locator(selector)
+                if locator.count() > 0:
+                    # Use Playwright's built-in waiting and clicking capabilities
+                    # force=True can help if Playwright thinks it's not interactable,
+                    # but it's often better to ensure proper waits.
+                    locator.first.scroll_into_view_if_needed()
+                    locator.first.click(timeout=5000) # Add a timeout for the click operation
+                    print(f"Successfully clicked avatar button with selector: {selector}")
+                    return True
+            except Exception as e:
+                print(f"Failed to click avatar button with selector '{selector}': {str(e)}")
+                # Continue to the next selector
+
+        # --- Phase 2: Handle potential Shadow DOM menu if the avatar click didn't work ---
+        # This assumes '#privacy-web-floatmenu' is the shadow host for a *different* menu
+        print("Avatar button not found or clickable. Checking for Shadow DOM menu...")
+        float_menu_host = page.locator("#privacy-web-floatmenu")
+        if float_menu_host.count() > 0:
+            print("Found potential shadow host: #privacy-web-floatmenu")
+            # Execute JavaScript to access the shadowRoot and find the element within it
+            # This is the most robust way to interact with Shadow DOM in Playwright/Selenium
+            for internal_selector in shadow_dom_menu_selectors:
+                try:
+                    print(f"Trying Shadow DOM internal selector: {internal_selector}")
+                    button_clicked = page.evaluate(f'''(host, selector) => {{
+                        const shadowHost = host;
+                        if (shadowHost && shadowHost.shadowRoot) {{
+                            const button = shadowHost.shadowRoot.querySelector(selector);
+                            if (button) {{
+                                button.scrollIntoView({{behavior: 'smooth', block: 'center'}});
+                                button.click();
+                                return true;
+                            }}
+                        }}
+                        return false;
+                    }}''', float_menu_host.element_handle(), internal_selector) # Pass element_handle for JS context
+
+                    if button_clicked:
+                        print(f"Successfully clicked Shadow DOM menu button with internal selector: {internal_selector}")
+                        return True
+                except Exception as e:
+                    print(f"Failed to click Shadow DOM menu button with internal selector '{internal_selector}': {str(e)}")
+                    # Continue to the next internal selector
+
+        # --- Phase 3: Fallback for other generic "Menu" elements (less specific) ---
+        print("Shadow DOM menu not found or clickable. Trying generic text/image based fallbacks...")
+        fallback_clicked = page.evaluate('''() => {
+            // Try finding by img src/class (if not already covered by avatar_selectors)
+            const avatarImgs = document.querySelectorAll('img.el-image__inner[src*="media/avatar/"]');
+            for (const img of avatarImgs) {
+                const parentDiv = img.closest('div.menu__item') || img.parentElement; // Get parent div or immediate parent
+                if (parentDiv) {
+                    parentDiv.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    parentDiv.click();
+                    return true;
+                }
+            }
+
+            // Try finding by text content "Menu"
+            const menuItems = document.querySelectorAll('div.menu__item, span.text-menu');
+            for (const item of menuItems) {
+                if (item.textContent.trim() === 'Menu') {
+                    item.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    item.click();
+                    return true;
+                }
+            }
+            return false;
+        }''')
+
+        if fallback_clicked:
+            print("Successfully clicked Menu button using generic JavaScript fallback.")
+            return True
+
+        print("Could not find or click Menu button using any method.")
+        return False
+
+    except Exception as e:
+        print(f"An unexpected error occurred in click_on_menu: {str(e)}")
+        return False
+
+def click_on_sair(page):
+    """
+    Attempt to find and click on the 'Sair' (logout) element.
+    Handles Shadow DOM and multiple selector strategies.
+    """
+    try:
+        # List of selectors to try (based on provided details)
+        selectors = [
+            # Shadow DOM JavaScript selector (most reliable for this page)
+            'document.querySelector("#privacy-web-floatmenu").shadowRoot.querySelector("#el-id-1595-11 > div > div > div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div.font-medium.text-sm.option-header.d-flex.align-items-center.gap-2.mb-2 > span")',
+            'document.querySelector("#privacy-web-floatmenu").shadowRoot.querySelector("span:contains(\'Sair\')")',  # Text-based
+            'document.querySelector("#privacy-web-floatmenu").shadowRoot.querySelector("div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div > span")',
+            # Direct CSS selectors (if Shadow DOM is not present)
+            "#el-id-1595-11 > div > div > div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div.font-medium.text-sm.option-header.d-flex.align-items-center.gap-2.mb-2 > span",
+            "span:contains('Sair')",  # Text-based (may need library support or JS for :contains)
+            "div.font-medium.text-sm.option-header.d-flex.align-items-center.gap-2.mb-2 > span",
+            # Generalized for dynamic IDs and classes
+            "[id^='el-id-'] > div > div > div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div > span",
+            # XPath (may not work with Shadow DOM)
+            "//*[@id='el-id-1595-11']/div/div/div[1]/div[2]/div/section/div[2]/div[4]/div[1]/span",
+            "//span[contains(text(), 'Sair')]",
+            "//div[contains(@class, 'submenu__options')]//span[contains(text(), 'Sair')]"
+        ]
+
+        # Try each selector
+        for selector in selectors:
+            try:
+                # Handle different selector types
+                if selector.startswith("document.querySelector"):
+                    # JavaScript selector (handles shadow DOM)
+                    clicked = page.evaluate(f'''() => {{
+                        try {{
+                            const element = {selector};
+                            if (element) {{
+                                element.scrollIntoView({{behavior: 'smooth', block: 'center'}});
+                                element.focus();
+                                element.click();
+                                element.dispatchEvent(new Event('click', {{ bubbles: true }}));
+                                return true;
+                            }}
+                        }} catch(e) {{
+                            console.error('Error clicking sair:', e);
+                        }}
+                        return false;
+                    }}''')
+                    if clicked:
+                        print("✓ Sair clicked successfully with Shadow DOM selector")
+                        return True
+
+                elif selector.startswith('/'):
+                    # XPath selector
+                    xpath_elements = page.locator(f"xpath={selector}")
+                    if xpath_elements.count() > 0:
+                        try:
+                            # Force visibility
+                            page.evaluate(f'''(selector) => {{
+                                const element = document.evaluate(
+                                    `{selector}`,
+                                    document,
+                                    null,
+                                    XPathResult.FIRST_ORDERED_NODE_TYPE,
+                                    null
+                                ).singleNodeValue;
+                                if (element) {{
+                                    element.style.opacity = '1';
+                                    element.style.visibility = 'visible';
+                                    element.style.display = 'block';
+                                }}
+                            }}''', selector)
+                            # Scroll and click
+                            xpath_elements.first.scroll_into_view_if_needed()
+                            xpath_elements.first.click()
+                            print("✓ Sair clicked successfully with XPath")
+                            return True
+                        except Exception as e:
+                            print(f"XPath click failed: {str(e)}")
+
+                else:
+                    # CSS selector
+                    css_elements = page.locator(selector)
+                    if css_elements.count() > 0:
+                        try:
+                            # Force visibility
+                            page.evaluate(f'''(selector) => {{
+                                const element = document.querySelector(selector);
+                                if (element) {{
+                                    element.style.opacity = '1';
+                                    element.style.visibility = 'visible';
+                                    element.style.display = 'block';
+                                }}
+                            }}''', selector)
+                            # Scroll and click
+                            css_elements.first.scroll_into_view_if_needed()
+                            css_elements.first.click()
+                            print("✓ Sair clicked successfully with CSS selector")
+                            return True
+                        except Exception as e:
+                            print(f"CSS selector click failed: {str(e)}")
+
+            except Exception as e:
+                print(f"Failed with sair selector {selector}: {str(e)}")
+                continue
+
+        # Fallback JavaScript approach with comprehensive search
+        print("Trying JavaScript fallback approach for sair click...")
+        fallback_clicked = page.evaluate('''() => {
+            // Try Shadow DOM first
+            const shadowHost = document.querySelector("#privacy-web-floatmenu");
+            if (shadowHost && shadowHost.shadowRoot) {
+                // Try multiple selectors inside shadow DOM
+                const shadowSelectors = [
+                    '#el-id-1595-11 > div > div > div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div.font-medium.text-sm.option-header.d-flex.align-items-center.gap-2.mb-2 > span',
+                    'span:contains("Sair")',
+                    'div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div > span',
+                    '[id^="el-id-"] > div > div > div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div > span'
+                ];
+
+                for (const selector of shadowSelectors) {
+                    const shadowElement = shadowHost.shadowRoot.querySelector(selector);
+                    if (shadowElement) {
+                        shadowElement.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        shadowElement.focus();
+                        shadowElement.click();
+                        shadowElement.dispatchEvent(new Event('click', { bubbles: true }));
+                        return true;
+                    }
+                }
+            }
+
+            // Try regular DOM as fallback
+            const elementSelectors = [
+                '#el-id-1595-11 > div > div > div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div.font-medium.text-sm.option-header.d-flex.align-items-center.gap-2.mb-2 > span',
+                'span:contains("Sair")',
+                'div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div > span',
+                '[id^="el-id-"] > div > div > div.submenu__options > div:nth-child(3) > div > section > div.others-options > div:nth-child(4) > div > span'
+            ];
+
+            for (const selector of elementSelectors) {
+                const elements = document.querySelectorAll(selector);
+                for (const element of elements) {
+                    if (element && element.offsetParent !== null) {
+                        element.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        element.focus();
+                        element.click();
+                        element.dispatchEvent(new Event('click', { bubbles: true }));
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }''')
+
+        if fallback_clicked:
+            print("✓ Sair clicked successfully using JavaScript fallback!")
+            return True
+
+        print("❌ Could not find or click on sair using any method.")
+        return False
+
+    except Exception as e:
+        print(f"❌ Error in click_on_sair: {str(e)}")
+        return False
 
 def main():
     pw = None
     context = None
     page = None
     browser_process = None
+
+    # ADIÇÃO: Definir user_data aqui para acessá-lo no finally (para limpeza)
+    user_data = os.path.join(os.environ['LOCALAPPDATA'], r"Google\Chrome\User Data\Automation")
 
     # 2. Launch Browser via the Native Hook method
     try:
@@ -3943,8 +4207,7 @@ def main():
                     time.sleep(2)
 
         if not username_inserted:
-            print("❌ Failed to insert username after all attempts.")
-            page.screenshot(path="debug_username_failed.png")
+            print("❌ Maybe you are already logged in!")
 
         time.sleep(2)
         # endregion
@@ -3966,8 +4229,7 @@ def main():
                     time.sleep(2)
 
         if not password_inserted:
-            print("❌ Failed to insert password after all attempts.")
-            page.screenshot(path="debug_password_failed.png")
+            print("❌ Maybe you are already logged in!")
 
         time.sleep(2)
         # endregion
@@ -3991,7 +4253,7 @@ def main():
         # Wait for login to complete
         if login_successful:
             print("\nWaiting for login to complete...")
-            page.wait_for_timeout(5000)
+            page.wait_for_timeout(10000)
             print(f"Current URL: {page.url}")
             print("✓ Login process completed!")
         # endregion
@@ -4383,37 +4645,73 @@ def main():
                 mark_caption_as_used(current_caption)
                 mark_media_as_used(current_media_filename)
 
-        # region Persistence Loop
-        print("\n=== Browser is ready ===")
-        print("Script active. Close the Chrome window to exit.")
+        page.evaluate("window.scrollTo(0, 0);")
+
+        # region Try to click the Menu button with retries
+        max_retries = 3
+        print(f"Starting attempts to click the Menu button (avatar). Max retries: {max_retries}")
+        for attempt in range(max_retries):
+            print(f"\n--- Attempt {attempt + 1} of {max_retries} ---")
+            if click_on_menu(page):
+                print("Successfully clicked Menu button after one or more attempts!")
+                break # Exit the loop if successful
+            else:
+                print(f"Attempt {attempt + 1} failed to click the Menu button.")
+                if attempt < max_retries - 1:
+                    print("Waiting 1 second before the next attempt...")
+                    page.wait_for_timeout(1000)  # Wait 1 second before retrying
+                else:
+                    print("This was the last attempt.")
+        else:
+            # This 'else' block executes if the loop completes without a 'break'
+            print("Failed to click Menu button after all attempts.")
+
+        print("Waiting for 3 seconds after menu interaction (or failure)...")
+        page.wait_for_timeout(3000)
         # endregion
 
-        while True:
-            # For CDP connection, we check if the browser object is still connected
-            if not context.browser or not context.browser.is_connected():
-                print("Browser disconnected/closed by user. Shutting down...")
-                break
-            
-            # Additional safety: check if all pages were closed
-            if len(context.pages) == 0:
-                print("All tabs closed. Shutting down...")
-                break
+        # region Try to click on sair with retries
+        print("\nAttempting to click on sair...")
+        max_retries = 3
+        sair_clicked = False
 
-            time.sleep(1)
+        for attempt in range(max_retries):
+            print(f"Sair click attempt {attempt + 1}/{max_retries}")
+            if click_on_sair(page):
+                sair_clicked = True
+                break
+            else:
+                print(f"✗ Sair click attempt {attempt + 1} failed.")
+                if attempt < max_retries - 1:
+                    print("Waiting before next attempt...")
+                    time.sleep(2)
+
+        if not sair_clicked:
+            print("❌ Failed to click on sair after all attempts.")
+
+        page.wait_for_timeout(5000)
         # endregion
 
     except Exception as e:
-        print(f"Error during automation: {e}")
+        print(f"An error occurred: {e}")
+
     finally:
-        # 5. Cleanup
-        print("Cleaning up Playwright resources...")
+        # Cleanup: Close browser and resources (adjust based on your Playwright setup)
         try:
-            pw.stop()
-        except:
-            pass
-    
-        print("Exiting process.")
-        sys.exit(0)
+            if 'page' in locals() and page:
+                page.close()
+            if 'context' in locals() and context:
+                context.close()
+            if 'browser' in locals() and page:
+                page.close()
+            if 'browser' in locals() and browser_process:
+                browser_process.close()
+            print("Browser closed successfully.")
+        except Exception as close_err:
+            print(f"Error closing browser: {close_err}")
+
+        # Exit the script (0 for success, as per search recommendations)
+        sys.exit(0)    
 
 if __name__ == "__main__":
     main()

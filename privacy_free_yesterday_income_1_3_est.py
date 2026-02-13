@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import warnings
 import shutil  # ADIÇÃO: Para deletar diretórios recursivamente
 import numpy as np
+import pandas as pd
 
 # Third-party imports
 from playwright.sync_api import sync_playwright
@@ -94,7 +95,7 @@ def open_chrome_in_privacy_login_page():
 
 def insert_username(page):
     """
-    Attempt to find the username input field and insert 'hacksimone29@gmail.com'.
+    Attempt to find the username input field and insert 'milfelectra@gmail.com'.
     Handles Shadow DOM and multiple selector strategies.
     """
     try:
@@ -142,7 +143,7 @@ def insert_username(page):
                             console.error('Error inserting username:', e);
                         }}
                         return false;
-                    }}''', "hacksimone29@gmail.com")
+                    }}''', "milfelectra@gmail.com")
                     if input_inserted:
                         print("✓ Username inserted successfully with Shadow DOM selector")
                         return True
@@ -170,7 +171,7 @@ def insert_username(page):
                             # Scroll, focus, and fill
                             xpath_elements.first.scroll_into_view_if_needed()
                             xpath_elements.first.focus()
-                            xpath_elements.first.fill("hacksimone29@gmail.com")
+                            xpath_elements.first.fill("milfelectra@gmail.com")
                             print("✓ Username inserted successfully with XPath")
                             return True
                         except Exception as e:
@@ -193,7 +194,7 @@ def insert_username(page):
                             # Scroll, focus, and fill
                             css_elements.first.scroll_into_view_if_needed()
                             css_elements.first.focus()
-                            css_elements.first.fill("hacksimone29@gmail.com")
+                            css_elements.first.fill("milfelectra@gmail.com")
                             print("✓ Username inserted successfully with CSS selector")
                             return True
                         except Exception as e:
@@ -261,7 +262,7 @@ def insert_username(page):
             }
 
             return false;
-        }''', "hacksimone29@gmail.com")
+        }''', "milfelectra@gmail.com")
 
         if fallback_inserted:
             print("✓ Username inserted successfully using JavaScript fallback!")
@@ -276,7 +277,7 @@ def insert_username(page):
 
 def insert_password(page):
     """
-    Attempt to find the password input field and insert '#Partiu15'.
+    Attempt to find the password input field and insert '#Partiu14'.
     Handles Shadow DOM and multiple selector strategies.
     """
     try:
@@ -327,7 +328,7 @@ def insert_password(page):
                             console.error('Error inserting password:', e);
                         }}
                         return false;
-                    }}''', "#Partiu15")
+                    }}''', "#Partiu14")
                     if input_inserted:
                         print("✓ Password inserted successfully with Shadow DOM selector")
                         return True
@@ -355,7 +356,7 @@ def insert_password(page):
                             # Scroll, focus, and fill
                             xpath_elements.first.scroll_into_view_if_needed()
                             xpath_elements.first.focus()
-                            xpath_elements.first.fill("#Partiu15")
+                            xpath_elements.first.fill("#Partiu14")
                             print("✓ Password inserted successfully with XPath")
                             return True
                         except Exception as e:
@@ -378,7 +379,7 @@ def insert_password(page):
                             # Scroll, focus, and fill
                             css_elements.first.scroll_into_view_if_needed()
                             css_elements.first.focus()
-                            css_elements.first.fill("#Partiu15")
+                            css_elements.first.fill("#Partiu14")
                             print("✓ Password inserted successfully with CSS selector")
                             return True
                         except Exception as e:
@@ -449,7 +450,7 @@ def insert_password(page):
             }
 
             return false;
-        }''', "#Partiu15")
+        }''', "#Partiu14")
 
         if fallback_inserted:
             print("✓ Password inserted successfully using JavaScript fallback!")
@@ -910,23 +911,6 @@ def click_on_confirmar_button(page):
         print(f"Error in click_on_confirmar_button: {str(e)}")
         return False
 
-# Método separado
-import os
-import time
-import pandas as pd
-from datetime import datetime, timedelta
-
-import os
-import time
-from datetime import datetime, timedelta
-import pandas as pd
-
-import os
-import time
-from datetime import datetime, timedelta
-import pandas as pd
-import numpy as np
-
 def confirm_download_and_rebuild_report(page, click_on_confirmar_button):
     target_folder = r"G:\Meu Drive\Financeiro"
     os.makedirs(target_folder, exist_ok=True)
@@ -962,7 +946,7 @@ def confirm_download_and_rebuild_report(page, click_on_confirmar_button):
 
     # Now process the downloaded file
     try:
-        # Read the downloaded Excel file
+        # Read the downloaded Excel file with pandas
         df = pd.read_excel(downloaded_file)
 
         # Sum all values in column D (4th column, 0-based index)
@@ -971,41 +955,32 @@ def confirm_download_and_rebuild_report(page, click_on_confirmar_button):
         # Target Excel file
         target_excel = os.path.join(target_folder, 'receita_bruta_diaria.xlsx')
 
-        # Load or create the target Excel (read without assuming headers to avoid issues)
+        # Use openpyxl to load the workbook and preserve formatting
         if os.path.exists(target_excel):
-            target_df = pd.read_excel(target_excel, header=None)  # Treat as no headers, columns are 0,1,2,...
+            wb = load_workbook(target_excel)
+            ws = wb.active  # Assume a planilha ativa (ajuste se houver múltiplas)
         else:
-            target_df = pd.DataFrame()  # Create empty if doesn't exist
+            # Se não existir, crie um novo com openpyxl
+            from openpyxl import Workbook
+            wb = Workbook()
+            ws = wb.active
 
-        # Ensure there are at least 2 columns (for column B, index 1)
-        num_cols = target_df.shape[1]
-        if num_cols < 2:
-            # Add missing columns with NaN
-            for i in range(num_cols, 2):
-                target_df[i] = np.nan
+        # Find the last filled row in column C (coluna 3, 1-based in openpyxl)
+        col_index = 3  # Coluna C (A=1, B=2, C=3)
+        last_filled_row = 0
+        for row in range(1, ws.max_row + 1):
+            cell_value = ws.cell(row=row, column=col_index).value
+            if cell_value is not None:  # Considera preenchido se não for None
+                last_filled_row = row
 
-        # Find the last filled row in column B (index 1)
-        # Get non-NaN values in column 1
-        col_b = target_df.iloc[:, 1]
-        filled_rows = col_b[~col_b.isna()].index
-        if not filled_rows.empty:
-            last_filled_row = filled_rows.max()  # Last (maximum) index that is filled
-            next_row = last_filled_row + 1  # Next row after the last filled
-        else:
-            next_row = 0  # If no filled rows, start at row 0
+        next_row = last_filled_row + 1
 
-        # Expand the DataFrame if next_row is beyond current length
-        if next_row >= len(target_df):
-            new_rows = next_row - len(target_df) + 1
-            new_df = pd.DataFrame(np.nan, index=range(new_rows), columns=target_df.columns)
-            target_df = pd.concat([target_df, new_df], ignore_index=True)
+        # Insert the sum into column C at the next row
+        ws.cell(row=next_row, column=col_index).value = commission_sum
 
-        # Insert the sum into column B (index 1) at the next row
-        target_df.iloc[next_row, 1] = commission_sum
-
-        # Save back to the target Excel without index and without headers to preserve original format
-        target_df.to_excel(target_excel, index=False, header=False)
-        print(f"Sum {commission_sum} inserted into {target_excel} at row {next_row + 1}, column B.")
+        # Save the workbook (preserves all formatting)
+        wb.save(target_excel)
+        print(f"Sum {commission_sum} inserted into {target_excel} at row {next_row}, column C.")
 
     except Exception as e:
         print(f"Error processing the file: {str(e)}")
@@ -1212,115 +1187,92 @@ def click_on_fechar(page):
 def click_on_menu(page):
     """
     Attempt to find and click the 'Menu' button (avatar) using multiple approaches.
-    Handles Shadow DOM and prioritizes parent div for better interactivity.
+    Prioritizes the specific avatar button identified and handles Shadow DOM if present.
     """
+    print("Attempting to click the 'Menu' button...")
     try:
-        # List of selectors to try (updated for Menu: 5th child, text "Menu", img src/class)
-        selectors = [
-            # Direct CSS selector (target parent div)
-            "div > nav > div:nth-child(5)",
-            # Alternative CSS selectors
-            "nav.menu div.menu__item:nth-child(5)",
-            "nav.menu div.menu__item:last-child",  # Assuming it's the last item
-            "div.menu__item:has(span:text-is('Menu'))",  # Text-based
-            "img.el-image__inner[src*='media/avatar/']",  # Img src and class
-            # JavaScript path (from shadow root, target parent div)
-            "document.querySelector(\"#privacy-web-floatmenu\").shadowRoot.querySelector(\"div > nav > div:nth-child(5)\")",
-            # XPath (target parent div)
-            "//*[@id=\"privacy-web-floatmenu\"]//div/nav/div[5]",
-            # Alternative XPath
-            "//nav[@class='menu']/div[5]",
-            "//div[@class='menu__item' and .//span[text()='Menu']]",
-            "//img[contains(@src, 'media/avatar/') and @class='el-image__inner']"
+        # Define specific selectors for the avatar button you identified
+        # These are for the parent button or the image itself, which Playwright can often click
+        avatar_selectors = [
+            # 1. Direct CSS selector for the parent button of the avatar image
+            "#privacy-header--avatar-button",
+            # 2. CSS selector for the image itself (Playwright can often click images)
+            "#privacy-header--avatar-button > img",
+            # 3. XPath for the parent button
+            "//*[@id='privacy-header--avatar-button']",
+            # 4. XPath for the image itself
+            "//*[@id='privacy-header--avatar-button']/img",
+            # 5. More generic CSS for the image based on attributes
+            "img.privacy-header--avatar-img[src*='media/avatar/']",
+            # 6. More generic XPath for the image based on attributes
+            "//img[contains(@src, 'media/avatar/') and @class='privacy-header--avatar-img']"
         ]
 
-        # Try each selector
-        for selector in selectors:
+        # Define selectors for a potential Shadow DOM menu button, if it's a separate element
+        # These are for the 'div > nav > div:nth-child(5)' inside a shadow root
+        shadow_dom_menu_selectors = [
+            "div > nav > div:nth-child(5)", # This is the internal selector for the shadow root
+            "nav.menu div.menu__item:nth-child(5)",
+            "nav.menu div.menu__item:last-child",
+            "div.menu__item:has(span:text-is('Menu'))",
+        ]
+
+        # --- Phase 1: Try clicking the identified avatar button directly ---
+        for selector in avatar_selectors:
             try:
-                # Handle different selector types
-                if selector.startswith("document.querySelector"):
-                    # JavaScript selector (handles shadow DOM)
-                    button_clicked = page.evaluate(f'''() => {{
-                        const button = {selector};
-                        if (button) {{
-                            button.scrollIntoView({{behavior: 'smooth', block: 'center'}});
-                            button.click();
-                            return true;
+                print(f"Trying avatar selector: {selector}")
+                # Playwright's locator handles CSS and XPath automatically if prefixed
+                locator = page.locator(selector)
+                if locator.count() > 0:
+                    # Use Playwright's built-in waiting and clicking capabilities
+                    # force=True can help if Playwright thinks it's not interactable,
+                    # but it's often better to ensure proper waits.
+                    locator.first.scroll_into_view_if_needed()
+                    locator.first.click(timeout=5000) # Add a timeout for the click operation
+                    print(f"Successfully clicked avatar button with selector: {selector}")
+                    return True
+            except Exception as e:
+                print(f"Failed to click avatar button with selector '{selector}': {str(e)}")
+                # Continue to the next selector
+
+        # --- Phase 2: Handle potential Shadow DOM menu if the avatar click didn't work ---
+        # This assumes '#privacy-web-floatmenu' is the shadow host for a *different* menu
+        print("Avatar button not found or clickable. Checking for Shadow DOM menu...")
+        float_menu_host = page.locator("#privacy-web-floatmenu")
+        if float_menu_host.count() > 0:
+            print("Found potential shadow host: #privacy-web-floatmenu")
+            # Execute JavaScript to access the shadowRoot and find the element within it
+            # This is the most robust way to interact with Shadow DOM in Playwright/Selenium
+            for internal_selector in shadow_dom_menu_selectors:
+                try:
+                    print(f"Trying Shadow DOM internal selector: {internal_selector}")
+                    button_clicked = page.evaluate(f'''(host, selector) => {{
+                        const shadowHost = host;
+                        if (shadowHost && shadowHost.shadowRoot) {{
+                            const button = shadowHost.shadowRoot.querySelector(selector);
+                            if (button) {{
+                                button.scrollIntoView({{behavior: 'smooth', block: 'center'}});
+                                button.click();
+                                return true;
+                            }}
                         }}
                         return false;
-                    }}''')
+                    }}''', float_menu_host.element_handle(), internal_selector) # Pass element_handle for JS context
+
                     if button_clicked:
+                        print(f"Successfully clicked Shadow DOM menu button with internal selector: {internal_selector}")
                         return True
+                except Exception as e:
+                    print(f"Failed to click Shadow DOM menu button with internal selector '{internal_selector}': {str(e)}")
+                    # Continue to the next internal selector
 
-                elif selector.startswith('/'):
-                    # XPath selector
-                    xpath_elements = page.locator(f"xpath={selector}")
-                    if xpath_elements.count() > 0:
-                        try:
-                            # Force visibility
-                            page.evaluate(f'''(selector) => {{
-                                const element = document.evaluate(
-                                    `{selector}`, 
-                                    document, 
-                                    null, 
-                                    XPathResult.FIRST_ORDERED_NODE_TYPE, 
-                                    null
-                                ).singleNodeValue;
-                                if (element) {{
-                                    element.style.opacity = '1';
-                                    element.style.visibility = 'visible';
-                                    element.style.display = 'block';
-                                }}
-                            }}''', selector)
-                            # Scroll and click
-                            xpath_elements.first.scroll_into_view_if_needed()
-                            xpath_elements.first.click(force=True)
-                            return True
-                        except Exception as e:
-                            print(f"XPath click failed: {str(e)}")
-
-                else:
-                    # CSS selector
-                    css_elements = page.locator(selector)
-                    if css_elements.count() > 0:
-                        try:
-                            # Force visibility
-                            page.evaluate(f'''(selector) => {{
-                                const element = document.querySelector(selector);
-                                if (element) {{
-                                    element.style.opacity = '1';
-                                    element.style.visibility = 'visible';
-                                    element.style.display = 'block';
-                                }}
-                            }}''', selector)
-                            # Scroll and click
-                            css_elements.first.scroll_into_view_if_needed()
-                            css_elements.first.click(force=True)
-                            return True
-                        except Exception as e:
-                            print(f"CSS selector click failed: {str(e)}")
-
-            except Exception as e:
-                print(f"Failed with Menu selector {selector}: {str(e)}")
-                continue
-
-        # Fallback JavaScript approach for shadow DOM
+        # --- Phase 3: Fallback for other generic "Menu" elements (less specific) ---
+        print("Shadow DOM menu not found or clickable. Trying generic text/image based fallbacks...")
         fallback_clicked = page.evaluate('''() => {
-            // Try to access shadow root
-            const floatMenu = document.querySelector('#privacy-web-floatmenu');
-            if (floatMenu && floatMenu.shadowRoot) {
-                const menuBtn = floatMenu.shadowRoot.querySelector('div > nav > div:nth-child(5)');
-                if (menuBtn) {
-                    menuBtn.scrollIntoView({behavior: 'smooth', block: 'center'});
-                    menuBtn.click();
-                    return true;
-                }
-            }
-
-            // Try finding by img src/class
+            // Try finding by img src/class (if not already covered by avatar_selectors)
             const avatarImgs = document.querySelectorAll('img.el-image__inner[src*="media/avatar/"]');
             for (const img of avatarImgs) {
-                const parentDiv = img.closest('div.menu__item');
+                const parentDiv = img.closest('div.menu__item') || img.parentElement; // Get parent div or immediate parent
                 if (parentDiv) {
                     parentDiv.scrollIntoView({behavior: 'smooth', block: 'center'});
                     parentDiv.click();
@@ -1329,27 +1281,26 @@ def click_on_menu(page):
             }
 
             // Try finding by text content "Menu"
-            const menuItems = document.querySelectorAll('div.menu__item');
+            const menuItems = document.querySelectorAll('div.menu__item, span.text-menu');
             for (const item of menuItems) {
-                const textSpan = item.querySelector('span.text-menu');
-                if (textSpan && textSpan.textContent.trim() === 'Menu') {
+                if (item.textContent.trim() === 'Menu') {
                     item.scrollIntoView({behavior: 'smooth', block: 'center'});
                     item.click();
                     return true;
                 }
             }
-
             return false;
         }''')
 
         if fallback_clicked:
+            print("Successfully clicked Menu button using generic JavaScript fallback.")
             return True
 
         print("Could not find or click Menu button using any method.")
         return False
 
     except Exception as e:
-        print(f"Error in click_on_menu: {str(e)}")
+        print(f"An unexpected error occurred in click_on_menu: {str(e)}")
         return False
 
 def click_on_sair(page):
@@ -1735,20 +1686,28 @@ def main():
         page.wait_for_timeout(3000)
         # endregion
 
+        page.evaluate("window.scrollTo(0, 0);")
+
         # region Try to click the Menu button with retries
         max_retries = 3
+        print(f"Starting attempts to click the Menu button (avatar). Max retries: {max_retries}")
         for attempt in range(max_retries):
+            print(f"\n--- Attempt {attempt + 1} of {max_retries} ---")
             if click_on_menu(page):
-                print("Successfully clicked Menu button!")
-                break
+                print("Successfully clicked Menu button after one or more attempts!")
+                break # Exit the loop if successful
             else:
-                print(f"Attempt {attempt + 1} failed.")
+                print(f"Attempt {attempt + 1} failed to click the Menu button.")
                 if attempt < max_retries - 1:
-                    print("Waiting before next attempt...")
+                    print("Waiting 1 second before the next attempt...")
                     page.wait_for_timeout(1000)  # Wait 1 second before retrying
+                else:
+                    print("This was the last attempt.")
         else:
+            # This 'else' block executes if the loop completes without a 'break'
             print("Failed to click Menu button after all attempts.")
 
+        print("Waiting for 3 seconds after menu interaction (or failure)...")
         page.wait_for_timeout(3000)
         # endregion
 
