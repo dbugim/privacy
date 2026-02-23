@@ -1,29 +1,33 @@
 # Standard library imports
 import os
 import sys
+import shutil # Import shutil for advanced file operations
 from openpyxl import load_workbook, Workbook
-import glob
+from openpyxl.styles import Font, Border, Side, PatternFill, Alignment
 import time
 import subprocess
+from datetime import datetime, timedelta
 import warnings
-import datetime
-import pandas as pd # May not be directly used here, but good to have if the project uses it
-import os
-import datetime # For dates
-from openpyxl import load_workbook, Workbook # To load and create spreadsheets
-from openpyxl.styles import Font, Alignment, PatternFill, Border # <-- IMPORTANT: Add Font, Alignment, PatternFill, Border
-from openpyxl.styles.borders import Side # For borders
-from openpyxl.utils import get_column_letter # To adjust column width
-from openpyxl.styles import numbers # For number formatting
-
+import numpy as np
+import pandas as pd
 from contextlib import contextmanager
+
+# --- GARANTIR SETUOOLS NO PATH ---
+# Adiciona o diretório site-packages do venv ao sys.path explicitamente
+venv_site_packages = os.path.join(os.path.dirname(sys.executable), '..', 'Lib', 'site-packages')
+if venv_site_packages not in sys.path:
+    sys.path.insert(0, venv_site_packages)
+# --- FIM GARANTIR SETUOOLS NO PATH ---
+
+# Third-party imports
+from playwright.sync_api import sync_playwright
 
 warnings.filterwarnings("ignore", category=UserWarning, module="playwright_stealth")
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-# Third-party imports
-from playwright.sync_api import sync_playwright
-from openpyxl.styles import Font
+# region playwright-stealth (fork mais atualizado recomendado em 2025/2026)
+from playwright_stealth import stealth_sync
+# endregion
 
 @contextmanager
 def capture_and_save_log(file_path):
@@ -55,8 +59,8 @@ def capture_and_save_log(file_path):
         sys.stdout = Tee(original_stdout, log_file)
         sys.stderr = Tee(original_stderr, log_file)
 
-        # Add a start header to the log (and console)
-        now_start = datetime.datetime.now()
+                # Add a start header to the log (and console)
+        now_start = datetime.now() # <-- Remova o segundo 'datetime.'
         start_timestamp = now_start.strftime("%d:%m:%Y at %H:%M")
         print(f"\n--- SCRIPT EXECUTION STARTED AT {start_timestamp} ---\n")
 
@@ -71,7 +75,7 @@ def capture_and_save_log(file_path):
     finally:
         # Add the final timestamp to the log (and console)
         if log_file:
-            now_end = datetime.datetime.now()
+            now_end = datetime.now() # <-- Remova o segundo 'datetime.'
             end_timestamp = now_end.strftime("%d:%m:%Y at %H:%M")
             print(f"\n^^^^^^^^^^ ERROR LOGS OF {end_timestamp} ^^^^^^^^^^\n")
             log_file.close()
@@ -91,15 +95,6 @@ class Tee:
     def flush(self):
         for f in self.files:
             f.flush()
-
-# region playwright-stealth
-try:
-    from playwright_stealth import stealth_sync
-except ImportError:
-    print("playwright-stealth not found.")
-    print("Instale com: pip install git+https://github.com/AtuboDad/playwright_stealth.git")
-    sys.exit(1)
-# endregion
 
 def cleanup(pw=None, context=None, browser_process=None):
     """Cleanup resources properly"""
@@ -141,7 +136,7 @@ def open_chrome_in_privacy_login_page():
         "--start-maximized",
         "--no-first-run",
         "--no-default-browser-check",
-        "https://privacy.com.br"
+        "https://privacy.com.br/board"
     ])
 
     # Give the browser 5 seconds to fully open and start the debugging server
@@ -169,7 +164,7 @@ def open_chrome_in_privacy_login_page():
 
 def insert_username(page):
     """
-    Attempt to find the username input field and insert 'hacksimone29@gmail.com'.
+    Attempt to find the username input field and insert 'milfelectra@gmail.com'.
     Handles Shadow DOM and multiple selector strategies.
     """
     try:
@@ -217,7 +212,7 @@ def insert_username(page):
                             console.error('Error inserting username:', e);
                         }}
                         return false;
-                    }}''', "hacksimone29@gmail.com")
+                    }}''', "milfelectra@gmail.com")
                     if input_inserted:
                         print("✓ Username inserted successfully with Shadow DOM selector")
                         return True
@@ -245,7 +240,7 @@ def insert_username(page):
                             # Scroll, focus, and fill
                             xpath_elements.first.scroll_into_view_if_needed()
                             xpath_elements.first.focus()
-                            xpath_elements.first.fill("hacksimone29@gmail.com")
+                            xpath_elements.first.fill("milfelectra@gmail.com")
                             print("✓ Username inserted successfully with XPath")
                             return True
                         except Exception as e:
@@ -268,7 +263,7 @@ def insert_username(page):
                             # Scroll, focus, and fill
                             css_elements.first.scroll_into_view_if_needed()
                             css_elements.first.focus()
-                            css_elements.first.fill("hacksimone29@gmail.com")
+                            css_elements.first.fill("milfelectra@gmail.com")
                             print("✓ Username inserted successfully with CSS selector")
                             return True
                         except Exception as e:
@@ -336,7 +331,7 @@ def insert_username(page):
             }
 
             return false;
-        }''', "hacksimone29@gmail.com")
+        }''', "milfelectra@gmail.com")
 
         if fallback_inserted:
             print("✓ Username inserted successfully using JavaScript fallback!")
@@ -351,7 +346,7 @@ def insert_username(page):
 
 def insert_password(page):
     """
-    Attempt to find the password input field and insert '#Partiu15'.
+    Attempt to find the password input field and insert '#Partiu14'.
     Handles Shadow DOM and multiple selector strategies.
     """
     try:
@@ -402,7 +397,7 @@ def insert_password(page):
                             console.error('Error inserting password:', e);
                         }}
                         return false;
-                    }}''', "#Partiu15")
+                    }}''', "#Partiu14")
                     if input_inserted:
                         print("✓ Password inserted successfully with Shadow DOM selector")
                         return True
@@ -430,7 +425,7 @@ def insert_password(page):
                             # Scroll, focus, and fill
                             xpath_elements.first.scroll_into_view_if_needed()
                             xpath_elements.first.focus()
-                            xpath_elements.first.fill("#Partiu15")
+                            xpath_elements.first.fill("#Partiu14")
                             print("✓ Password inserted successfully with XPath")
                             return True
                         except Exception as e:
@@ -453,7 +448,7 @@ def insert_password(page):
                             # Scroll, focus, and fill
                             css_elements.first.scroll_into_view_if_needed()
                             css_elements.first.focus()
-                            css_elements.first.fill("#Partiu15")
+                            css_elements.first.fill("#Partiu14")
                             print("✓ Password inserted successfully with CSS selector")
                             return True
                         except Exception as e:
@@ -524,7 +519,7 @@ def insert_password(page):
             }
 
             return false;
-        }''', "#Partiu15")
+        }''', "#Partiu14")
 
         if fallback_inserted:
             print("✓ Password inserted successfully using JavaScript fallback!")
@@ -647,26 +642,6 @@ def click_extrato_tab(page):
     print("Não conseguiu localizar a aba Extrato")
     return False
 
-def cleanup(pw=None, context=None, browser_process=None):
-    """Cleanup resources properly"""
-    if context:
-        try:
-            context.close()
-        except Exception as e:
-            print(f"Error closing context: {e}")
-    if pw:
-        try:
-            pw.stop()
-        except Exception as e:
-            print(f"Error stopping Playwright: {e}")
-    if browser_process:
-        try:
-            browser_process.terminate()
-            browser_process.wait(timeout=5)
-        except Exception as e:
-            print(f"Error terminating browser process: {e}")
-    print("Recursos liberados")
-
 def click_on_calendar(page):
     """
     Attempt to find and click the Calendar icon using multiple approaches,
@@ -674,18 +649,16 @@ def click_on_calendar(page):
     """
     try:
         # List of selectors to try
-        # Note: Playwright's locator() can often pierce Shadow DOM automatically with CSS,
-        # but we include the explicit JS Path for safety.
         selectors = [
             # Direct CSS selector (Playwright usually pierces shadow roots with this)
             "i.el-icon.el-input__icon.el-range__icon",
-            
+
             # Specific Path CSS
             "#pane-statement i.el-range__icon",
-            
+
             # XPath
             "//*[@id='pane-statement']//i[contains(@class, 'el-range__icon')]",
-            
+
             # The full JS Path provided (Direct Shadow DOM access)
             'document.querySelector("#privacy-web-myprivacy").shadowRoot.querySelector("#pane-statement > div > div:nth-child(1) > div > div.card-body > div.border-0 > div > div > div:nth-child(1) > div > i.el-icon.el-input__icon.el-range__icon")'
         ]
@@ -703,7 +676,8 @@ def click_on_calendar(page):
                         }}
                         return false;
                     }}''')
-                    if button_clicked: return True
+                    if button_clicked:
+                        return True
 
                 # Handle XPath
                 elif selector.startswith('//') or selector.startswith('(*'):
@@ -711,7 +685,7 @@ def click_on_calendar(page):
                     if xpath_elements.count() > 0:
                         xpath_elements.first.click(force=True)
                         return True
-                
+
                 # Handle Standard CSS (Playwright auto-pierces Shadow DOM)
                 else:
                     css_elements = page.locator(selector)
@@ -764,13 +738,10 @@ def click_on_yesterday(page):
     """
     try:
         # 1. Calculate Yesterday's Day Number
-        # CORREÇÃO AQUI: Use datetime.datetime.now() e datetime.timedelta
-        yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+        yesterday = datetime.now() - timedelta(days=1)
         day_to_click = str(yesterday.day)
 
         # 2. JavaScript to find and click the specific day inside Shadow DOM
-        # We search for cells that are 'available' (not from prev/next month)
-        # and contain the specific text of yesterday's day.
         click_script = f'''() => {{
             const findInShadow = (selector, root = document) => {{
                 const el = root.querySelector(selector);
@@ -785,7 +756,7 @@ def click_on_yesterday(page):
 
             // Find all available date cells
             const cells = Array.from(document.querySelectorAll('.el-date-table td.available'))
-                          .concat(Array.from(findInShadow('.el-date-table') ? 
+                          .concat(Array.from(findInShadow('.el-date-table') ?
                                   findInShadow('.el-date-table').querySelectorAll('td.available') : []));
 
             // Filter for the cell that matches yesterday's date
@@ -798,7 +769,7 @@ def click_on_yesterday(page):
                 targetCell.scrollIntoView({{behavior: 'auto', block: 'center'}});
                 // Click twice for range selection (Start and End)
                 targetCell.click();
-                setTimeout(() => targetCell.click(), 200); 
+                setTimeout(() => targetCell.click(), 200);
                 return true;
             }}
             return false;
@@ -811,6 +782,65 @@ def click_on_yesterday(page):
         print(f"Error in click_on_yesterday: {str(e)}")
         return False
 
+def click_on_extrato_de_venda_next_page_button(page):
+    """
+    Finds and clicks the 'Next Page' button in the sales statement pagination.
+    Handles Shadow DOM, checks for disabled states, and waits for UI transition.
+    """
+    try:
+        # 1. Advanced JavaScript Evaluation for Shadow DOM and State
+        js_click_script = '''() => {
+            const findElementInShadows = (selector, root = document) => {
+                const el = root.querySelector(selector);
+                if (el) return el;
+                const shadows = Array.from(root.querySelectorAll('*')).filter(e => e.shadowRoot);
+                for (let s of shadows) {
+                    const found = findElementInShadows(selector, s.shadowRoot);
+                    if (found) return found;
+                }
+                return null;
+            };
+
+            const btn = findElementInShadows('button.btn-next');
+
+            if (!btn) return "not_found";
+
+            // Check if button is disabled via attribute, property, or CSS class
+            const isReadonly = btn.disabled ||
+                               btn.getAttribute('aria-disabled') === 'true' ||
+                               btn.classList.contains('disabled');
+
+            if (isReadonly) return "disabled";
+
+            btn.scrollIntoView({behavior: 'auto', block: 'center'});
+            btn.click();
+            return "clicked";
+        }'''
+
+        result = page.evaluate(js_click_script)
+
+        if result == "clicked":
+            # Mandatory wait for the table to begin refreshing
+            page.wait_for_timeout(2000)
+            return True
+        elif result == "disabled":
+            print("Pagination: Reached the last page (Next button is disabled).")
+            return False
+        else:
+            # Fallback to Playwright's native locators if JS didn't find it
+            native_btn = page.locator("#pane-statement button.btn-next").first
+            if native_btn.is_visible() and native_btn.is_enabled():
+                native_btn.click(force=True)
+                page.wait_for_timeout(2000)
+                return True
+
+            print("Pagination: Next page button not found.")
+            return False
+
+    except Exception as e:
+        print(f"Error in click_on_extrato_de_venda_next_page_button: {str(e)}")
+        return False
+
 def click_on_gerar_relatorio_button(page):
     """
     Finds and clicks the 'Gerar Relatório' button in the sales statement.
@@ -821,16 +851,16 @@ def click_on_gerar_relatorio_button(page):
         selectors = [
             # 1. Direct CSS (Playwright automatically pierces Shadow DOM for CSS)
             "#pane-statement button.btn-primary:has-text('Gerar Relatório')",
-            
+
             # 2. Your provided CSS Selector
             "#pane-statement > div > div:nth-child(1) > div > div.card-buttons > button",
-            
+
             # 3. Text-based locator
             "button:has-text('Gerar Relatório')",
-            
+
             # 4. Provided XPath
             "xpath=//*[@id='pane-statement']/div/div[1]/div/div[3]/button",
-            
+
             # 5. Provided JS Path for Shadow DOM
             'document.querySelector("#privacy-web-myprivacy").shadowRoot.querySelector("#pane-statement > div > div:nth-child(1) > div > div.card-buttons > button")'
         ]
@@ -848,7 +878,8 @@ def click_on_gerar_relatorio_button(page):
                         }}
                         return false;
                     }}''')
-                    if clicked: return True
+                    if clicked:
+                        return True
 
                 # Handle Standard Locators (CSS/XPath)
                 else:
@@ -861,13 +892,13 @@ def click_on_gerar_relatorio_button(page):
             except:
                 continue
 
-        # Global Shadow DOM Fallback (Search for button by text inside all shadow roots)
+        # Global Shadow DOM Fallback
         fallback_clicked = page.evaluate('''() => {
             const findInShadow = (root = document) => {
                 const buttons = Array.from(root.querySelectorAll('button'));
                 const target = buttons.find(b => b.innerText.includes('Gerar Relatório'));
                 if (target && target.getAttribute('aria-disabled') !== 'true') return target;
-                
+
                 const shadows = Array.from(root.querySelectorAll('*')).filter(e => e.shadowRoot);
                 for (let s of shadows) {
                     const found = findInShadow(s.shadowRoot);
@@ -895,18 +926,17 @@ def click_on_confirmar_button(page):
     Handles the el-overlay-dialog structure specifically.
     """
     try:
-        # 1. First, try to locate the specific dialog by its aria-label
-        # This is the most reliable way to find this specific popup
+        # JavaScript to find and click the Confirmar button
         js_click_script = '''() => {
             const findButtonInDialog = (root = document) => {
                 // 1. Find the dialog container by aria-label
                 const dialog = root.querySelector('div[role="dialog"][aria-label="Gerar Relatório"]');
-                
+
                 if (dialog) {
                     // 2. Find the Confirmar button within that dialog's footer
                     const buttons = Array.from(dialog.querySelectorAll('button.btn-primary'));
                     const confirmBtn = buttons.find(b => b.innerText.includes('Confirmar'));
-                    
+
                     if (confirmBtn && confirmBtn.getAttribute('aria-disabled') !== 'true') {
                         confirmBtn.click();
                         return "clicked";
@@ -933,9 +963,8 @@ def click_on_confirmar_button(page):
         elif result == "disabled":
             print("Confirmar button is disabled (check if form fields are filled).")
             return False
-        
-        # 3. Native Playwright Fallback (If JS fails to find the dialog)
-        # Playwright's locator('role=dialog') is very powerful
+
+        # 3. Native Playwright Fallback
         try:
             confirm_loc = page.get_by_role("dialog", name="Gerar Relatório").get_by_role("button", name="Confirmar")
             if confirm_loc.is_visible():
@@ -951,149 +980,386 @@ def click_on_confirmar_button(page):
         print(f"Error in click_on_confirmar_button: {str(e)}")
         return False
 
-def generate_top_spenders_from_report():
-    """
-    Reads the most recent XLSX report from the target folder, filters rows where Column E contains "Chat" or "Mimo - Chat",
-    groups and sums Column D (Sua comissão) by unique values in Column H (Comprador), sorts by descending sum,
-    saves the results to a new Excel file with yesterday's date in the format dd_mm_yyyy_top_spenders_privacy_vip.xlsx,
-    and deletes the original report file.
-    """
-    target_folder = r"G:\Meu Drive\Financeiro\Top gastadores no sexting\Diário"
+def confirm_download_and_rebuild_report(page, click_on_confirmar_button):
+    # Define the target folder for all operations
+    target_folder = r"G:\Meu Drive\Financeiro"
+    # Define filenames for the original and temporary Excel reports
+    original_excel_filename = 'receita_bruta_diaria.xlsx'
+    temp_excel_filename = 'receita_bruta_diaria_temp.xlsx' # This file will be kept
 
+    # Construct full paths for the original and temporary Excel files
+    target_excel_path = os.path.join(target_folder, original_excel_filename)
+    temp_excel_path = os.path.join(target_folder, temp_excel_filename)
+
+    # Ensure the target directory exists
+    os.makedirs(target_folder, exist_ok=True)
+    max_retries = 3
+    download_success = False
+    downloaded_file = None  # To store the path of the downloaded file
+
+    # Loop to attempt download multiple times
+    for attempt in range(max_retries):
+        try:
+            print(f"Attempt {attempt + 1}: Waiting for download event...")
+            # 1. Start the download listener
+            with page.expect_download(timeout=60000) as download_info:
+                # 2. Trigger the click ONLY HERE to initiate download
+                if click_on_confirmar_button(page):
+                    print("Confirm button clicked. Processing file...")
+                    # 3. Capture the downloaded file and save it
+                    download = download_info.value
+                    downloaded_file = os.path.join(target_folder, download.suggested_filename)
+                    download.save_as(downloaded_file)
+                    print(f"File successfully saved to: {downloaded_file}")
+                    download_success = True
+                    break # Exit loop if download is successful
+                else:
+                    print(f"Click logic could not find the button on attempt {attempt + 1}")
+        except Exception as e:
+            print(f"Attempt {attempt + 1} failed: {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(2) # Wait before retrying
+
+    # If download failed after all retries, exit the function
+    if not download_success:
+        print("Failed to capture the download after all retries.")
+        return
+
+    # Now, process the downloaded file
     try:
-        # 1. Find the most recent .xlsx file
-        list_of_files = glob.glob(os.path.join(target_folder, "*.xlsx"))
-        if not list_of_files:
-            print("No XLSX files found in the directory.")
-            return False
+        # Read the downloaded Excel file with pandas
+        df = pd.read_excel(downloaded_file)
 
-        latest_file = max(list_of_files, key=os.path.getctime)
-        print(f"Reading latest Excel report: {os.path.basename(latest_file)}")
+        # Sum all values in column D (4th column, 0-based index)
+        commission_sum = df.iloc[:, 3].sum()
 
-        # 2. Load the Workbook
-        wb = load_workbook(latest_file, data_only=True)
-        sheet = wb.active
+        # --- Logic to work with the TEMPORARY Excel file ---
+        # If the original file exists, copy it to the temporary path to work on it.
+        # This ensures the temporary file starts with the same content/formatting as the original.
+        if os.path.exists(target_excel_path):
+            shutil.copy2(target_excel_path, temp_excel_path)
+            print(f"Copied '{original_excel_filename}' to '{temp_excel_filename}' for processing.")
+        else:
+            # If the original file does not exist, ensure the temporary file is created fresh.
+            # If temp_excel_path already exists from a previous run, open it. Otherwise, create new.
+            if not os.path.exists(temp_excel_path):
+                wb_temp = Workbook()
+                ws_temp = wb_temp.active
+                # Add an initial header if it's a new file to have a reference cell
+                ws_temp.cell(row=1, column=2, value="Commission Sum")
+                wb_temp.save(temp_excel_path) # Save immediately to create the file
+                print(f"Created new temporary file: '{temp_excel_filename}'.")
+            else:
+                print(f"Temporary file '{temp_excel_filename}' already exists, opening it.")
 
-        # Dictionary to hold sums: {comprador: total_commission}
-        spenders_dict = {}
+        # Load the temporary workbook for modifications
+        wb_temp = load_workbook(temp_excel_path)
+        ws_temp = wb_temp.active # Assume the active sheet (adjust if multiple sheets)
 
-        # 3. Iterate through rows starting from row 2
-        for row in sheet.iter_rows(min_row=2, values_only=True):
-            if len(row) >= 8:  # Ensure row has at least columns A to H (indices 0-7)
-                tipo_entrada = row[4]  # Column E (index 4)
-                comprador = row[7]     # Column H (index 7)
-                commission_raw = row[3]  # Column D (index 3)
+        # Find the last filled row in column C (column 3, 1-based index in openpyxl)
+        col_index = 3  # Column C (A=1, B=2, C=3, etc.)
+        last_filled_row = 0
+        for row in range(1, ws_temp.max_row + 1):
+            cell_value = ws_temp.cell(row=row, column=col_index).value
+            if cell_value is not None:  # Consider cell filled if not None
+                last_filled_row = row
 
-                # Filter by "Chat" or "Mimo - Chat" in Column E
-                if isinstance(tipo_entrada, str) and ("Chat" in tipo_entrada or "Mimo - Chat" in tipo_entrada):
-                    if comprador is None or commission_raw is None:
-                        continue
+        next_row = last_filled_row + 1
 
-                    # Clean and parse the commission value
-                    try:
-                        if isinstance(commission_raw, str):
-                            clean_val = commission_raw.replace('R$', '').replace('$', '').strip()
-                            if ',' in clean_val and '.' in clean_val:
-                                clean_val = clean_val.replace('.', '').replace(',', '.')
-                            elif ',' in clean_val:
-                                clean_val = clean_val.replace(',', '.')
-                            commission = float(clean_val)
-                        else:
-                            commission = float(commission_raw)
+        # Get the cell where the value will be inserted in the temporary file
+        target_cell_temp = ws_temp.cell(row=next_row, column=col_index)
 
-                        # Group and sum by comprador
-                        if comprador in spenders_dict:
-                            spenders_dict[comprador] += commission
-                        else:
-                            spenders_dict[comprador] = commission
+        # Apply formatting from the cell above in the temporary file, if available
+        if last_filled_row >= 1:
+            source_cell_temp = ws_temp.cell(row=last_filled_row, column=col_index)
+            target_cell_temp.font = Font(name=source_cell_temp.font.name, size=source_cell_temp.font.size,
+                                    bold=False, italic=source_cell_temp.font.italic,
+                                    vertAlign=source_cell_temp.font.vertAlign, underline=source_cell_temp.font.underline,
+                                    strike=source_cell_temp.font.strike, color=source_cell_temp.font.color)
+            target_cell_temp.border = Border(left=source_cell_temp.border.left, right=source_cell_temp.border.right,
+                                        top=source_cell_temp.border.top, bottom=source_cell_temp.border.bottom)
+            target_cell_temp.fill = PatternFill(fill_type=source_cell_temp.fill.fill_type,
+                                           start_color=source_cell_temp.fill.start_color,
+                                           end_color=source_cell_temp.fill.end_color)
+            target_cell_temp.number_format = source_cell_temp.number_format
+            target_cell_temp.alignment = Alignment(horizontal=source_cell_temp.alignment.horizontal,
+                                              vertical=source_cell_temp.alignment.vertical,
+                                              text_rotation=source_cell_temp.alignment.text_rotation,
+                                              wrap_text=source_cell_temp.alignment.wrap_text,
+                                              shrink_to_fit=source_cell_temp.alignment.shrink_to_fit,
+                                              indent=source_cell_temp.alignment.indent)
+        else:
+            # If no cell above to copy formatting from, set a default format (e.g., currency)
+            target_cell_temp.number_format = 'R$ #,##0.00' # Example currency format
+            target_cell_temp.font = Font(bold=False)
 
-                    except (ValueError, TypeError):
-                        continue
+        # Insert the sum into column B at the next row in the temporary file
+        target_cell_temp.value = commission_sum
 
-        # 4. Sort the dictionary by total commission descending
-        sorted_spenders = sorted(spenders_dict.items(), key=lambda x: x[1], reverse=True)
+        # Save the changes to the temporary file. This file is now complete and kept.
+        wb_temp.save(temp_excel_path)
+        print(f"Sum {commission_sum} inserted into temporary file '{temp_excel_filename}' at row {next_row}, column B, with formatting preserved.")
+        print(f"Temporary file '{temp_excel_filename}' saved and kept.")
 
-        # 5. Create a new Workbook for output
-        new_wb = Workbook()
-        new_sheet = new_wb.active
-        new_sheet.title = "Top Spenders"
+        # --- Now, update the ORIGINAL Excel file with just the new value ---
+        # Load the original workbook
+        wb_original = None
+        if os.path.exists(target_excel_path):
+            wb_original = load_workbook(target_excel_path)
+            ws_original = wb_original.active
+            print(f"Original file '{original_excel_filename}' loaded for update.")
+        else:
+            # If original doesn't exist, create a new one
+            wb_original = Workbook()
+            ws_original = wb_original.active
+            ws_original.cell(row=1, column=2, value="Commission Sum") # Add header if new
+            print(f"Original file '{original_excel_filename}' did not exist, creating a new one.")
 
-        # Add headers
-        new_sheet.append(["Comprador", "Valor gasto"])
+        # Find the last filled row in column B of the original file
+        last_filled_row_original = 0
+        for row in range(1, ws_original.max_row + 1):
+            cell_value = ws_original.cell(row=row, column=col_index).value
+            if cell_value is not None:
+                last_filled_row_original = row
+        next_row_original = last_filled_row_original + 1
 
-        # Style for headers (A1 and B1): Arial, Bold, Centered
-        header_font = Font(name='Arial', bold=True)
-        center_alignment = Alignment(horizontal='center', vertical='center')
+        # Get the cell where the value will be inserted in the original file
+        target_cell_original = ws_original.cell(row=next_row_original, column=col_index)
 
-        # Style for data (A2:B_n): Arial, Not Bold, Centered
-        data_font = Font(name='Arial', bold=False) # Explicitly not bold
+        # Apply formatting from the cell above in the original file, if available
+        if last_filled_row_original >= 1:
+            source_cell_original = ws_original.cell(row=last_filled_row_original, column=col_index)
+            target_cell_original.font = Font(name=source_cell_original.font.name, size=source_cell_original.font.size,
+                                    bold=False, italic=source_cell_original.font.italic,
+                                    vertAlign=source_cell_original.font.vertAlign, underline=source_cell_original.font.underline,
+                                    strike=source_cell_original.font.strike, color=source_cell_original.font.color)
+            target_cell_original.border = Border(left=source_cell_original.border.left, right=source_cell_original.border.right,
+                                        top=source_cell_original.border.top, bottom=source_cell_original.border.bottom)
+            target_cell_original.fill = PatternFill(fill_type=source_cell_original.fill.fill_type,
+                                           start_color=source_cell_original.fill.start_color,
+                                           end_color=source_cell_original.fill.end_color)
+            target_cell_original.number_format = source_cell_original.number_format
+            target_cell_original.alignment = Alignment(horizontal=source_cell_original.alignment.horizontal,
+                                              vertical=source_cell_original.alignment.vertical,
+                                              text_rotation=source_cell_original.alignment.text_rotation,
+                                              wrap_text=source_cell_original.alignment.wrap_text,
+                                              shrink_to_fit=source_cell_original.alignment.shrink_to_fit,
+                                              indent=source_cell_original.alignment.indent)
+        else:
+            target_cell_original.number_format = 'R$ #,##0.00'
+            target_cell_original.font = Font(bold=False)
 
-        # Number format for BRL (currency)
-        brl_format = 'R$ #,##0.00' # Brazilian currency format
+        # Insert the sum into column B at the next row in the original file
+        target_cell_original.value = commission_sum
 
-        # Add sorted data
-        row_num = 2 # Starts at row 2, as row 1 is the header
-        for buyer, total in sorted_spenders: # Changed 'comprador' to 'buyer' for consistency
-            new_sheet.cell(row=row_num, column=1, value=buyer) # Column A
-            new_sheet.cell(row=row_num, column=2, value=total)     # Column B
-
-            # Apply font style and alignment to data
-            new_sheet.cell(row=row_num, column=1).font = data_font
-            new_sheet.cell(row=row_num, column=1).alignment = center_alignment
-
-            new_sheet.cell(row=row_num, column=2).font = data_font
-            new_sheet.cell(row=row_num, column=2).alignment = center_alignment
-
-            # Apply BRL currency format to "Valor gasto" column (Column B)
-            new_sheet.cell(row=row_num, column=2).number_format = brl_format
-
-            row_num += 1 # Increment for the next row
-
-        # --- Automatically Adjust Column Widths ---
-        for col in new_sheet.columns:
-            max_length = 0
-            column = col[0].column # Gets the column index (1 for A, 2 for B, etc.)
-            col_letter = get_column_letter(column) # Converts the index to a letter (A, B, etc.)
-
-            for cell in col:
-                try:
-                    # Considers the formatted value to calculate width
-                    if cell.number_format == brl_format and isinstance(cell.value, (int, float)):
-                        # Estimates the length of the currency-formatted value
-                        formatted_value = f"R$ {cell.value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                        if len(str(formatted_value)) > max_length:
-                            max_length = len(str(formatted_value))
-                    elif len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except (TypeError, ValueError):
-                    pass # Ignores cells with values that cannot be converted to string
-
-            # Adds a small margin for better visualization
-            adjusted_width = (max_length + 2) 
-            new_sheet.column_dimensions[col_letter].width = adjusted_width
-
-        # 6. Generate filename with yesterday's date
-        # CORREÇÃO AQUI: Use datetime.datetime.now() e datetime.timedelta
-        yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
-        date_str = yesterday.strftime("%d_%m_%Y")
-        output_filename = f"{date_str}_top_spenders_privacy_vip.xlsx"
-        output_path = os.path.join(target_folder, output_filename)
-
-        # Save the new workbook
-        new_wb.save(output_path)
-        print(f"Top spenders file saved to: {output_path}")
-
-        # 7. CLOSE the original workbook before deleting
-        wb.close()
-
-        # 8. Delete the original file
-        os.remove(latest_file)
-        print(f"Original file {os.path.basename(latest_file)} deleted successfully.")
-
-        return True
+        # Save the updated original workbook
+        wb_original.save(target_excel_path)
+        print(f"Sum {commission_sum} inserted into original file '{original_excel_filename}' at row {next_row_original}, column B, with formatting preserved.")
+        print(f"Report '{original_excel_filename}' updated successfully!")
 
     except Exception as e:
-        print(f"Error in generate_top_spenders_from_report: {str(e)}")
+        print(f"Error processing the file: {str(e)}")
+        # If an error occurs during processing, the temporary file might still be there,
+        # but we won't attempt to remove it as per the new requirement.
+        print(f"Temporary file '{temp_excel_filename}' was not removed due to error or user request.")
+
+    finally:
+        # Delete the downloaded file regardless of success/failure in processing
+        if downloaded_file and os.path.exists(downloaded_file):
+            os.remove(downloaded_file)
+            print(f"Downloaded file deleted: {downloaded_file}")
+
+def click_on_fechar(page):
+    """
+    Attempt to find and click on the 'Fechar' (close) button in the dialog.
+    Handles Shadow DOM and multiple selector strategies. Prioritizes parent button.
+    """
+    try:
+        # List of selectors to try (based on provided details, targeting button or span)
+        selectors = [
+            # Shadow DOM JavaScript selector (most reliable for this page)
+            'document.querySelector("#privacy-web-myprivacy").shadowRoot.querySelector("#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button")',  # Parent button
+            'document.querySelector("#privacy-web-myprivacy").shadowRoot.querySelector("#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button > span > span")',  # Original span
+            'document.querySelector("#privacy-web-myprivacy").shadowRoot.querySelector("div.el-dialog footer button:has(span:text-is(\'Fechar\'))")',  # Text-based on button
+            'document.querySelector("#privacy-web-myprivacy").shadowRoot.querySelector("button.btn-secondary > span > span:contains(\'Fechar\')")',  # Class and text
+            # Direct CSS selectors (if Shadow DOM is not present)
+            "#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button",  # Parent button
+            "#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button > span > span",  # Original span
+            "div.el-dialog footer button:has(span:text-is('Fechar'))",  # Text-based (Playwright supports :has and :text-is)
+            "button.btn-secondary > span > span:contains('Fechar')",  # Class and text
+            # Generalized for dynamic elements
+            "div[class*='el-dialog'] footer button",  # Any button in dialog footer
+            # XPath (may not work with Shadow DOM)
+            "//*[@id='pane-statement']/div/div[1]/div/div[2]/div[3]/div/div/footer/span/button",  # Parent button
+            "//*[@id='pane-statement']/div/div[1]/div/div[2]/div[3]/div/div/footer/span/button/span/span",  # Original span
+            "//div[contains(@class, 'el-dialog')]//footer//button//span[contains(text(), 'Fechar')]/..",  # Parent button of span with "Fechar"
+            "//button[contains(@class, 'btn-secondary') and .//span[contains(text(), 'Fechar')]]"  # Button with class and nested text
+        ]
+
+        # Try each selector
+        for selector in selectors:
+            try:
+                # Handle different selector types
+                if selector.startswith("document.querySelector"):
+                    # JavaScript selector (handles shadow DOM)
+                    clicked = page.evaluate(f'''() => {{
+                        try {{
+                            const element = {selector};
+                            if (element) {{
+                                element.scrollIntoView({{behavior: 'smooth', block: 'center'}});
+                                element.focus();
+                                element.click();
+                                element.dispatchEvent(new Event('click', {{ bubbles: true }}));
+                                return true;
+                            }}
+                        }} catch(e) {{
+                            console.error('Error clicking fechar:', e);
+                        }}
+                        return false;
+                    }}''')
+                    if clicked:
+                        print("✓ Fechar clicked successfully with Shadow DOM selector")
+                        return True
+
+                elif selector.startswith('/'):
+                    # XPath selector
+                    xpath_elements = page.locator(f"xpath={selector}")
+                    if xpath_elements.count() > 0:
+                        try:
+                            # Force visibility
+                            page.evaluate(f'''(selector) => {{
+                                const element = document.evaluate(
+                                    `{selector}`,
+                                    document,
+                                    null,
+                                    XPathResult.FIRST_ORDERED_NODE_TYPE,
+                                    null
+                                ).singleNodeValue;
+                                if (element) {{
+                                    element.style.opacity = '1';
+                                    element.style.visibility = 'visible';
+                                    element.style.display = 'block';
+                                }}
+                            }}''', selector)
+                            # Scroll and click
+                            xpath_elements.first.scroll_into_view_if_needed()
+                            xpath_elements.first.click()
+                            print("✓ Fechar clicked successfully with XPath")
+                            return True
+                        except Exception as e:
+                            print(f"XPath click failed: {str(e)}")
+
+                else:
+                    # CSS selector
+                    css_elements = page.locator(selector)
+                    if css_elements.count() > 0:
+                        try:
+                            # Force visibility
+                            page.evaluate(f'''(selector) => {{
+                                const element = document.querySelector(selector);
+                                if (element) {{
+                                    element.style.opacity = '1';
+                                    element.style.visibility = 'visible';
+                                    element.style.display = 'block';
+                                }}
+                            }}''', selector)
+                            # Scroll and click
+                            css_elements.first.scroll_into_view_if_needed()
+                            css_elements.first.click()
+                            print("✓ Fechar clicked successfully with CSS selector")
+                            return True
+                        except Exception as e:
+                            print(f"CSS selector click failed: {str(e)}")
+
+            except Exception as e:
+                print(f"Failed with fechar selector {selector}: {str(e)}")
+                continue
+
+        # Fallback JavaScript approach with comprehensive search
+        print("Trying JavaScript fallback approach for fechar click...")
+        fallback_clicked = page.evaluate('''() => {
+            // Try Shadow DOM first
+            const shadowHost = document.querySelector("#privacy-web-myprivacy");
+            if (shadowHost && shadowHost.shadowRoot) {
+                // Try multiple selectors inside shadow DOM
+                const shadowSelectors = [
+                    '#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button',  // Parent button
+                    '#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button > span > span',  // Original span
+                    'div.el-dialog footer button:has(span:contains("Fechar"))',  // Text-based
+                    'button.btn-secondary > span > span:contains("Fechar")',  // Class and text
+                    'div[class*="el-dialog"] footer button'  // Generalized dialog footer button
+                ];
+
+                for (const selector of shadowSelectors) {
+                    const shadowElement = shadowHost.shadowRoot.querySelector(selector);
+                    if (shadowElement) {
+                        shadowElement.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        shadowElement.focus();
+                        shadowElement.click();
+                        shadowElement.dispatchEvent(new Event('click', { bubbles: true }));
+                        return true;
+                    }
+                }
+
+                // Additional text-based search in shadow (for non-standard :has/:contains)
+                const buttons = shadowHost.shadowRoot.querySelectorAll('button');
+                for (const button of buttons) {
+                    if (button.textContent?.trim().includes('Fechar')) {
+                        button.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        button.focus();
+                        button.click();
+                        button.dispatchEvent(new Event('click', { bubbles: true }));
+                        return true;
+                    }
+                }
+            }
+
+            // Try regular DOM as fallback
+            const elementSelectors = [
+                '#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button',
+                '#pane-statement > div > div:nth-child(1) > div > div.card-body > div.el-overlay > div > div > footer > span > button > span > span',
+                'div.el-dialog footer button:has(span:contains("Fechar"))',
+                'button.btn-secondary > span > span:contains("Fechar")',
+                'div[class*="el-dialog"] footer button'
+            ];
+
+            for (const selector of elementSelectors) {
+                const elements = document.querySelectorAll(selector);
+                for (const element of elements) {
+                    if (element && element.offsetParent !== null) {
+                        element.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        element.focus();
+                        element.click();
+                        element.dispatchEvent(new Event('click', { bubbles: true }));
+                        return true;
+                    }
+                }
+            }
+
+            // Text-based fallback in regular DOM
+            const buttons = document.querySelectorAll('button');
+            for (const button of buttons) {
+                if (button.textContent?.trim().includes('Fechar')) {
+                    button.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    button.focus();
+                    button.click();
+                    button.dispatchEvent(new Event('click', { bubbles: true }));
+                    return true;
+                }
+            }
+
+            return false;
+        }''')
+
+        if fallback_clicked:
+            print("✓ Fechar clicked successfully using JavaScript fallback!")
+            return True
+
+        print("❌ Could not find or click on fechar using any method.")
+        return False
+
+    except Exception as e:
+        print(f"❌ Error in click_on_fechar: {str(e)}")
         return False
 
 def click_on_menu(page):
@@ -1381,29 +1647,29 @@ def click_on_sair(page):
 
 def main():
 
-    log_file_path = r"G:\Meu Drive\Sexting - Histórico\yesterday_top_spender_privacy_vip_error_logs.txt"
+    log_file_path = r"G:\Meu Drive\Financeiro\privacy_free_yesterday_income_logs.txt"
 
     with capture_and_save_log(log_file_path):
+
         pw = None
         context = None
         page = None
         browser_process = None
 
+        # ADIÇÃO: Definir user_data aqui para acessá-lo no finally (para limpeza)
         user_data = os.path.join(os.environ['LOCALAPPDATA'], r"Google\Chrome\User Data\Automation")
 
-        # region Launch Browser via the Native Hook method
+        # 2. Launch Browser via the Native Hook method
         try:
             pw, context, browser_process = open_chrome_in_privacy_login_page()
-            page = context.pages[0]
+            page = context.pages[0]  # Grab the active Privacy board page
             print("✓ Browser launched successfully")
         except Exception as e:
             print(f"❌ Failed to launch or hook browser: {e}")
             cleanup(pw, context, browser_process)
             return
-        
-        # endregion Launch Browser via the Native Hook method
 
-        # region MAIN PROCESS
+        # 3. Automation and Interaction
         try:
             print("Waiting for page load...")
             page.wait_for_load_state("domcontentloaded")
@@ -1490,23 +1756,23 @@ def main():
             page.wait_for_timeout(5000)
             print(f"✓ Navigated to: {page.url}")
 
-            # region click on extrato mode
-            print("\nTentando abrir aba Extrato...")
-            extrato_success = False
-            for attempt in range(1, 7):
-                print(f"Tentativa {attempt}/6...")
+            # region Try to click the Extrato tab with retries
+            print("\nAttempting to click Extrato tab...")
+            max_retries = 3
+            extrato_clicked = False
+            for attempt in range(max_retries):
+                print(f"Attempt {attempt + 1}: Clicking Extrato tab...")
                 if click_extrato_tab(page):
-                    extrato_success = True
+                    print("✓ Success: Extrato tab clicked.")
+                    extrato_clicked = True
                     break
-                time.sleep(2)
+                else:
+                    print(f"✗ Attempt {attempt + 1} failed. Tab may not be visible yet.")
+                    if attempt < max_retries - 1:
+                        page.wait_for_timeout(2000)
 
-            if not extrato_success:
-                print("!!! FALHA CRÍTICA: Não conseguiu abrir a aba Extrato")
-                return
-
-            print("\nAguardando carregamento completo da tabela de extrato...")
-            page.wait_for_selector('#pane-statement', state='visible', timeout=30000)
-            time.sleep(3)  # segurança extra
+            if not extrato_clicked:
+                print("⚠ Warning: Could not click Extrato tab after all attempts.")
             # endregion
 
             # region Try to click the Calendar icon
@@ -1537,55 +1803,43 @@ def main():
                     time.sleep(1)
             else:
                 print("Failed to select Yesterday after all attempts.")
-
             # endregion
 
-            time.sleep(4)
+            page.wait_for_timeout(3000)
 
             # region Try to click the Gerar Relatório button
             if click_on_gerar_relatorio_button(page):
                 print("Dialog 'Gerar Relatório' opened.")
-                time.sleep(2) # Wait for dialog animation
-                
-                # DO NOT call click_on_confirmar_button here!
-                # It will be called inside the download listener below.
+                time.sleep(3)  # Wait for dialog animation
             # endregion
 
-            # region Confirm and Download Report
-            target_folder = r"G:\Meu Drive\Sexting - Histórico"  # Adjusted to match the processing folder
-            os.makedirs(target_folder, exist_ok=True)
+            confirm_download_and_rebuild_report(page, click_on_confirmar_button)
+
+            page.wait_for_timeout(4000)
+
+            # region Try to click on fechar with retries
+            print("\nAttempting to click on fechar...")
             max_retries = 3
-            download_success = False
+            fechar_clicked = False
+
             for attempt in range(max_retries):
-                try:
-                    print(f"Attempt {attempt + 1}: Waiting for download event...")
-                    # 1. Start the listener
-                    with page.expect_download(timeout=60000) as download_info:
-                        # 2. Trigger the click ONLY HERE
-                        if click_on_confirmar_button(page):
-                            print("Confirm button clicked. Processing file...")
-                            # 3. Capture and save the file
-                            download = download_info.value
-                            final_destination = os.path.join(target_folder, download.suggested_filename)
-                            download.save_as(final_destination)
-                            print(f"File successfully saved to: {final_destination}")
-                            download_success = True
-                            break 
-                        else:
-                            print(f"Click logic could not find the button on attempt {attempt + 1}")
-                except Exception as e:
-                    print(f"Attempt {attempt + 1} failed: {str(e)}")
+                print(f"Fechar click attempt {attempt + 1}/{max_retries}")
+                if click_on_fechar(page):
+                    fechar_clicked = True
+                    break
+                else:
+                    print(f"✗ Fechar click attempt {attempt + 1} failed.")
                     if attempt < max_retries - 1:
+                        print("Waiting before next attempt...")
                         time.sleep(2)
-            if not download_success:
-                print("Failed to capture the download after all retries.")
+
+            if not fechar_clicked:
+                print("❌ Failed to click on fechar after all attempts.")
+
+            page.wait_for_timeout(3000)
             # endregion
 
-            # After successful download, generate top spenders
-            if download_success:
-                generate_top_spenders_from_report()
-
-                page.evaluate("window.scrollTo(0, 0);")
+            page.evaluate("window.scrollTo(0, 0);")
 
             # region Try to click the Menu button with retries
             max_retries = 3

@@ -1552,7 +1552,7 @@ def main():
             # endregion
 
             # region Confirm and Download Report
-            target_folder = r"G:\Meu Drive\Sexting - Histórico"  # Adjusted to match the processing folder
+            target_folder = r"G:\Meu Drive\Financeiro\Top gastadores no sexting\Diário"  # Adjusted to match the processing folder
             os.makedirs(target_folder, exist_ok=True)
             max_retries = 3
             download_success = False
